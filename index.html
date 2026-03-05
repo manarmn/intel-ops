@@ -268,7 +268,7 @@ function startTicker(text) {
 }
 
 // ===== NEWS =====
-setInterval(loadNews, 5*60*1000);
+setInterval(() => window.loadNews && window.loadNews(), 5*60*1000);
 window.loadNews = async function() {
     document.getElementById('news-count').innerText='جارٍ التحديث...';
     document.getElementById('news-list').innerHTML='<div class="loading"><div class="spinner"></div><span>جارٍ فحص الشبكات...</span></div>';
