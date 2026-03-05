@@ -2,121 +2,73 @@ export default async function handler(req, res) {
     const { type, text } = req.query;
     const apiKeyGemini = process.env.GEMINI_API_KEY;
 
-    // إعداد الرؤوس لمنع التخزين المؤقت وضمان بيانات حية
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    // إعداد الرؤوس لضمان عدم الكاش وجلب بيانات طازجة
+    res.setHeader('Cache-Control', 'no-store, max-age=0');
 
-    // --- 1. محرك جلب الأخبار (RSS Engine) ---
     if (type === 'news') {
         const feeds = [
             ['https://www.aljazeera.net/feed/topic-35', 'الجزيرة', '🇶🇦'],
             ['https://arabic.rt.com/rss/', 'RT عربي', '🇷🇺'],
-            ['https://www.bbc.com/arabic/index.xml', 'BBC عربي', '🇬🇧'],
-            ['https://alarabiya.net/ar/rss.xml', 'العربية', '🇸🇦'],
             ['https://www.skynewsarabia.com/rss.xml', 'سكاي نيوز', '🇦🇪'],
-            ['https://www.aa.com.tr/ar/rss/default?cat=live', 'الأناضول', '🇹🇷']
+            ['https://www.alarabiya.net/ar/rss.xml', 'العربية', '🇸🇦'],
+            ['https://www.france24.com/ar/rss', 'فرانس 24', '🇫🇷']
         ];
 
-        async function fetchFeed([url, name, flag]) {
+        const newsPromises = feeds.map(async ([url, name, flag]) => {
             try {
                 const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
                 const xml = await response.text();
-                const items = [];
-                const itemMatches = xml.matchAll(/<item>([\s\S]*?)<\/item>/g);
-                
-                for (const m of itemMatches) {
-                    const title = m[1].match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/)?.[1] || '';
-                    const link = m[1].match(/<link>([\s\S]*?)<\/link>/)?.[1] || '';
-                    const description = m[1].match(/<description[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/)?.[1] || '';
-                    const pubDate = m[1].match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1] || new Date().toISOString();
-                    
-                    if (title.length > 5) {
-                        items.push({
-                            title: title.trim(),
-                            fullText: description.replace(/<[^>]*>/g, '').trim() || title.trim(), // الخبر الكامل هنا
-                            source: { name, flag },
-                            url: link,
-                            publishedAt: pubDate
-                        });
-                    }
-                    if (items.length >= 5) break;
-                }
-                return items;
+                // استخراج الأخبار مع الوصف الكامل لضمان ظهور الخبر كاملاً
+                const items = xml.matchAll(/<item>([\s\S]*?)<\/item>/g);
+                return Array.from(items).map(m => ({
+                    title: m[1].match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/)?.[1] || '',
+                    description: m[1].match(/<description[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/)?.[1]?.replace(/<[^>]*>/g, '') || '',
+                    source: { name, flag },
+                    publishedAt: m[1].match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1] || new Date().toISOString()
+                })).slice(0, 5);
             } catch { return []; }
-        }
+        });
 
-        const allFeeds = await Promise.all(feeds.map(fetchFeed));
-        const flatNews = allFeeds.flat().sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
-        return res.status(200).json({ articles: flatNews });
+        const allNews = (await Promise.all(newsPromises)).flat()
+            .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+        return res.status(200).json({ articles: allNews });
     }
 
-    // --- 2. محرك التحليل الجيوسياسي والسيناريوهات (Scenario Engine) ---
     if (type === 'analyze') {
-        const rawContent = decodeURIComponent(text || '').trim();
-        // تنظيف النص لضمان عدم كسر الـ JSON
-        const cleanContent = rawContent.replace(/["'\\]/g, ' ').substring(0, 2000);
+        const cleanContent = decodeURIComponent(text || '').substring(0, 3000);
 
-        const prompt = `You are a Senior Military Intelligence Analyst. Analyze this news with extreme precision.
-        RESPOND ONLY WITH A VALID JSON OBJECT. NO MARKDOWN.
-        Structure:
+        const prompt = `أنت رئيس وحدة التحليل في وكالة استخبارات جيوسياسية. حلل الخبر التالي بأسلوب استراتيجي معمق.
+        يجب أن يكون الرد JSON فقط بالتنسيق التالي:
         {
-          "threat_level": "حرج جداً" | "مرتفع" | "متوسط" | "منخفض",
+          "threat_level": "حرج جداً" | "مرتفع" | "متوسط",
           "threat_score": 0-100,
-          "summary": "تحليل استراتيجي عميق يربط الأحداث ببعضها (3 جمل)",
-          "parties": ["الطرف أ", "الطرف ب"],
-          "interests": "المصالح الجيوسياسية المتصارعة في هذا الخبر",
+          "summary": "تحليل استخباراتي يربط الخبر بالصراع الإقليمي وتوازنات القوى (حد أدنى 4 جمل)",
+          "parties": ["الأطراف المباشرة والفاعلين الدوليين من خلف الستار"],
+          "interests": "تحليل عميق للمصالح القومية والاقتصادية المتصادمة",
           "scenarios": {
-             "current": "توصيف دقيق للوضع الميداني والسياسي اللحظي",
-             "best": "السيناريو المتفائل: خطوات احتواء التصعيد الممكنة",
-             "worst": "السيناريو الكارثي: كيف يمكن أن يتطور هذا لصدام أوسع"
+             "current": "توصيف جيوسياسي دقيق للحالة الراهنة وموازين القوى",
+             "best": "مسار خفض التصعيد: الشروط والمحفزات المطلوبة لنجاح التهدئة",
+             "worst": "مسار التصعيد الشامل: نقاط الانفجار المحتملة وتأثيرها على خطوط الإمداد والأمن الإقليمي"
           },
-          "forecast": "توقعات الـ 30 يوماً القادمة (بناءً على المعطيات)",
-          "lat": 0.0,
-          "lng": 0.0,
-          "location_name": "أدق موقع جغرافي مرتبط بالحدث"
+          "forecast": "تقدير موقف استشرافي لـ 30 يوماً القادمة بناءً على التاريخ العسكري للمنطقة",
+          "lat": 0.0, "lng": 0.0, "location_name": "الموقع الاستراتيجي الأدق"
         }
-        News to analyze: ${cleanContent}`;
+        الخبر: ${cleanContent}`;
 
         try {
-            const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKeyGemini}`, {
+            const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKeyGemini}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: { 
-                        temperature: 0.1, 
-                        responseMimeType: "application/json",
-                        maxOutputTokens: 1000 
-                    }
-                }),
-                signal: AbortSignal.timeout(9500)
+                    generationConfig: { temperature: 0.2, responseMimeType: "application/json" }
+                })
             });
 
             const data = await aiResponse.json();
-            
-            if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-                const result = JSON.parse(data.candidates[0].content.parts[0].text);
-                return res.status(200).json(result);
-            }
-            throw new Error("Invalid AI Response Mapping");
-
-        } catch (error) {
-            console.error("AI Analysis Error:", error.message);
-            // نظام الطوارئ: تحليل ذكي "محلي" إذا فشل الـ API
-            const isWar = cleanContent.includes("غارة") || cleanContent.includes("قصف") || cleanContent.includes("حرب");
-            return res.status(200).json({
-                threat_level: isWar ? "مرتفع" : "متوسط",
-                threat_score: isWar ? 85 : 40,
-                summary: "النظام يواجه ضغطاً في معالجة البيانات العميقة. التحليل الأولي يشير إلى توتر متصاعد في المنطقة المستهدفة.",
-                parties: ["أطراف النزاع الإقليمية"],
-                interests: "المصالح الأمنية القومية",
-                scenarios: {
-                    current: "عمليات استهداف ميدانية متفرقة",
-                    best: "تهدئة عبر وساطات دولية",
-                    worst: "اتساع رقعة الاستهداف لتشمل بنى تحتية"
-                },
-                forecast: "استمرار حالة عدم الاستقرار مع ترقب لردود الأفعال.",
-                lat: 33.8, lng: 35.5, location_name: "منطقة النزاع"
-            });
+            return res.status(200).json(JSON.parse(data.candidates[0].content.parts[0].text));
+        } catch (e) {
+            return res.status(500).json({ error: "فشل في إنتاج تحليل استراتيجي" });
         }
     }
 }
