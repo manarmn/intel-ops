@@ -116,7 +116,7 @@
         /* TICKER */
         .ticker-wrap { overflow: hidden; background: rgba(0,242,255,0.04); border-top: 1px solid var(--border); padding: 0 8px; display: flex; align-items: center; height: 26px; flex-shrink: 0; font-size: 11px; font-family: 'JetBrains Mono'; color: var(--muted); }
         .ticker-label { color: var(--accent); font-size: 10px; white-space: nowrap; margin-left: 10px; }
-        #ticker-text { white-space: nowrap; animation: ticker 35s linear infinite; }
+        #ticker-text { white-space: nowrap; animation: ticker 60s linear infinite; }
         @keyframes ticker { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
     </style>
 </head>
@@ -202,9 +202,10 @@ async function loadNews() {
         const data = await res.json();
         if (!data.articles?.length) throw new Error('لا توجد أخبار');
         document.getElementById('news-count').innerText = `${data.articles.length} خبر`;
+        window._newsItems = data.articles;
         list.innerHTML = data.articles.map((art, idx) => {
             const time = new Date(art.publishedAt).toLocaleTimeString('ar-IQ', { hour:'2-digit', minute:'2-digit' });
-            return `<div class="news-item" id="news-${idx}" onclick="analyzeNews('${encodeURIComponent(art.title)}', ${idx})">
+            return `<div class="news-item" id="news-${idx}" onclick="analyzeNews(${idx})">
                 <div class="news-title">${art.title}</div>
                 <div class="news-meta"><span class="news-source">${art.source?.name || 'مجهول'}</span><span>${time}</span></div>
             </div>`;
@@ -218,7 +219,8 @@ async function loadNews() {
 }
 
 // ===== تحليل الخبر =====
-async function analyzeNews(encodedTitle, idx) {
+async function analyzeNews(idx) {
+    const encodedTitle = encodeURIComponent(window._newsItems?.[idx]?.title || '');
     document.querySelectorAll('.news-item').forEach(i => i.classList.remove('active'));
     const el = document.getElementById(`news-${idx}`);
     if (el) el.classList.add('active');
