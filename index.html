@@ -116,8 +116,8 @@
         /* TICKER */
         .ticker-wrap { overflow: hidden; background: rgba(0,242,255,0.04); border-top: 1px solid var(--border); padding: 0 8px; display: flex; align-items: center; height: 26px; flex-shrink: 0; font-size: 11px; font-family: 'JetBrains Mono'; color: var(--muted); }
         .ticker-label { color: var(--accent); font-size: 10px; white-space: nowrap; margin-left: 10px; }
-        #ticker-text { white-space: nowrap; animation: ticker 120s linear infinite; }
-        @keyframes ticker { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
+        #ticker-text { white-space: nowrap; display: inline-block; }
+        
     </style>
 </head>
 <body>
@@ -210,7 +210,8 @@ async function loadNews() {
                 <div class="news-meta"><span class="news-source">${art.source?.name || 'مجهول'}</span><span>${time}</span></div>
             </div>`;
         }).join('');
-        document.getElementById('ticker-text').innerText = data.articles.map(a => a.title).join('  ◆  ');
+        // تحديث التيكر بنظام JS بطيء
+        startTicker(data.articles.map(a => a.title).join('   ◆   '));
         document.getElementById('stat-time').innerText = new Date().toLocaleTimeString('ar-IQ');
     } catch(e) {
         list.innerHTML = `<div class="error-msg">⚠️ فشل الاتصال: ${e.message}</div>`;
@@ -220,7 +221,7 @@ async function loadNews() {
 
 // ===== تحليل الخبر =====
 async function analyzeNews(idx) {
-    const rawTitle = (window._newsItems?.[idx]?.title || '').replace(/["\\]/g, ' ').trim();
+    const rawTitle = (window._newsItems?.[idx]?.title || '').replace(/["\\%&+#]/g, ' ').trim();
     const encodedTitle = encodeURIComponent(rawTitle);
     document.querySelectorAll('.news-item').forEach(i => i.classList.remove('active'));
     const el = document.getElementById(`news-${idx}`);
@@ -372,6 +373,23 @@ function getThreatClass(l) {
     if (l.includes('مرتفع')) return 'threat-high';
     if (l.includes('متوسط')) return 'threat-medium';
     return 'threat-low';
+}
+
+// ===== تيكر بطيء جداً =====
+let tickerRAF = null;
+function startTicker(text) {
+    const el = document.getElementById('ticker-text');
+    const wrap = el.parentElement;
+    el.innerText = text;
+    let pos = wrap.offsetWidth;
+    if (tickerRAF) cancelAnimationFrame(tickerRAF);
+    function step() {
+        pos -= 0.4; // سرعة بطيئة جداً
+        if (pos < -el.offsetWidth) pos = wrap.offsetWidth;
+        el.style.transform = `translateX(${pos}px)`;
+        tickerRAF = requestAnimationFrame(step);
+    }
+    step();
 }
 
 window.onload = loadNews;
