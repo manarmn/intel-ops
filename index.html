@@ -137,9 +137,8 @@ background-size:40px 40px}
         <div id="a-view" class="scroll"><div class="empty"><div style="font-size:28px;opacity:.3">🎯</div><div>اختر خبراً لبدء التحليل الاستراتيجي</div></div></div>
     </div>
 </div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-document.addEventListener("DOMContentLoaded", function initApp() {
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+<script defer>
 // ===== CLOCK =====
 setInterval(() => {
     document.getElementById('clock').innerText = new Date().toUTCString().slice(17,25) + ' Z';
@@ -371,12 +370,10 @@ function tclass(l) {
     return 'tl';
 }
 
-
-
-}); // DOMContentLoaded
-
-document.addEventListener("DOMContentLoaded", () => window.loadNews());
+// بدء التطبيق
+window.loadNews();
 </script>
+
 
 </body>
 </html>
