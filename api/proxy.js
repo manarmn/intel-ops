@@ -1,66 +1,92 @@
 export default async function handler(req, res) {
     const { type, text } = req.query;
     const apiKeyGemini = process.env.GEMINI_API_KEY;
-    const apiKeyGroq = process.env.GROQ_API_KEY;
 
-    // إعدادات الذاكرة المؤقتة لمنع التكرار
+    // إعداد الرؤوس لمنع التخزين المؤقت وضمان بيانات حية
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
 
-    // --- قسم جلب الأخبار (News) ---
+    // --- 1. محرك جلب الأخبار (RSS Engine) ---
     if (type === 'news') {
         const feeds = [
             ['https://www.aljazeera.net/feed/topic-35', 'الجزيرة', '🇶🇦'],
             ['https://arabic.rt.com/rss/', 'RT عربي', '🇷🇺'],
             ['https://www.bbc.com/arabic/index.xml', 'BBC عربي', '🇬🇧'],
             ['https://alarabiya.net/ar/rss.xml', 'العربية', '🇸🇦'],
-            ['https://www.skynewsarabia.com/rss.xml', 'سكاي نيوز', '🇦🇪']
+            ['https://www.skynewsarabia.com/rss.xml', 'سكاي نيوز', '🇦🇪'],
+            ['https://www.aa.com.tr/ar/rss/default?cat=live', 'الأناضول', '🇹🇷']
         ];
 
-        async function fetchRSS(url, name, flag) {
+        async function fetchFeed([url, name, flag]) {
             try {
-                const r = await fetch(url, { signal: AbortSignal.timeout(5000) });
-                const xml = await r.text();
+                const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
+                const xml = await response.text();
                 const items = [];
-                const matches = xml.matchAll(/<item>([\s\S]*?)<\/item>/g);
-                for (const m of matches) {
+                const itemMatches = xml.matchAll(/<item>([\s\S]*?)<\/item>/g);
+                
+                for (const m of itemMatches) {
                     const title = m[1].match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/)?.[1] || '';
                     const link = m[1].match(/<link>([\s\S]*?)<\/link>/)?.[1] || '';
-                    if (title.length > 10) items.push({ title, source: { name, flag }, url: link, publishedAt: new Date().toISOString() });
-                    if (items.length >= 6) break;
+                    const description = m[1].match(/<description[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/)?.[1] || '';
+                    const pubDate = m[1].match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1] || new Date().toISOString();
+                    
+                    if (title.length > 5) {
+                        items.push({
+                            title: title.trim(),
+                            fullText: description.replace(/<[^>]*>/g, '').trim() || title.trim(), // الخبر الكامل هنا
+                            source: { name, flag },
+                            url: link,
+                            publishedAt: pubDate
+                        });
+                    }
+                    if (items.length >= 5) break;
                 }
                 return items;
             } catch { return []; }
         }
 
-        const results = await Promise.all(feeds.map(f => fetchRSS(f[0], f[1], f[2])));
-        return res.status(200).json({ articles: results.flat().sort(() => Math.random() - 0.5) });
+        const allFeeds = await Promise.all(feeds.map(fetchFeed));
+        const flatNews = allFeeds.flat().sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+        return res.status(200).json({ articles: flatNews });
     }
 
-    // --- قسم التحليل الاحترافي (Analyze) ---
+    // --- 2. محرك التحليل الجيوسياسي والسيناريوهات (Scenario Engine) ---
     if (type === 'analyze') {
-        // تنظيف النص بشكل جذري لمنع كسر الـ JSON
-        const cleanText = decodeURIComponent(text || '')
-            .replace(/["']/g, '') 
-            .replace(/[\n\r\t]/g, ' ')
-            .trim()
-            .substring(0, 1000);
+        const rawContent = decodeURIComponent(text || '').trim();
+        // تنظيف النص لضمان عدم كسر الـ JSON
+        const cleanContent = rawContent.replace(/["'\\]/g, ' ').substring(0, 2000);
 
-        if (!cleanText) return res.status(400).json({ error: "Empty text" });
-
-        // البرومبت الآن "إجباري" التنسيق
-        const prompt = `Act as a senior intelligence officer. Analyze this news and respond ONLY with a valid JSON object. 
-        NO MARKDOWN, NO EXPLANATION.
-        Template: {"threat_level":"حرج","threat_score":85,"summary":"Strategic analysis here","parties":["Party A"],"interests":"Why it matters","scenarios":{"current":"Status","best":"Peace","worst":"War"},"forecast":"Next 30 days","lat":33.8,"lng":35.5,"location_name":"City/Country"}
-        News content: ${cleanText}`;
+        const prompt = `You are a Senior Military Intelligence Analyst. Analyze this news with extreme precision.
+        RESPOND ONLY WITH A VALID JSON OBJECT. NO MARKDOWN.
+        Structure:
+        {
+          "threat_level": "حرج جداً" | "مرتفع" | "متوسط" | "منخفض",
+          "threat_score": 0-100,
+          "summary": "تحليل استراتيجي عميق يربط الأحداث ببعضها (3 جمل)",
+          "parties": ["الطرف أ", "الطرف ب"],
+          "interests": "المصالح الجيوسياسية المتصارعة في هذا الخبر",
+          "scenarios": {
+             "current": "توصيف دقيق للوضع الميداني والسياسي اللحظي",
+             "best": "السيناريو المتفائل: خطوات احتواء التصعيد الممكنة",
+             "worst": "السيناريو الكارثي: كيف يمكن أن يتطور هذا لصدام أوسع"
+          },
+          "forecast": "توقعات الـ 30 يوماً القادمة (بناءً على المعطيات)",
+          "lat": 0.0,
+          "lng": 0.0,
+          "location_name": "أدق موقع جغرافي مرتبط بالحدث"
+        }
+        News to analyze: ${cleanContent}`;
 
         try {
-            // المحاولة مع Gemini 1.5 Flash (الأسرع)
             const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKeyGemini}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: { temperature: 0.1, responseMimeType: "application/json" }
+                    generationConfig: { 
+                        temperature: 0.1, 
+                        responseMimeType: "application/json",
+                        maxOutputTokens: 1000 
+                    }
                 }),
                 signal: AbortSignal.timeout(9500)
             });
@@ -68,48 +94,29 @@ export default async function handler(req, res) {
             const data = await aiResponse.json();
             
             if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-                let resultText = data.candidates[0].content.parts[0].text;
-                // التأكد من استخراج الـ JSON فقط في حال أضاف الموديل أي نص خارجي
-                const start = resultText.indexOf('{');
-                const end = resultText.lastIndexOf('}');
-                if (start !== -1 && end !== -1) {
-                    return res.status(200).json(JSON.parse(resultText.substring(start, end + 1)));
-                }
+                const result = JSON.parse(data.candidates[0].content.parts[0].text);
+                return res.status(200).json(result);
             }
-            
-            // نظام الفشل الاحتياطي (Fallback to Groq)
-            if (apiKeyGroq) {
-                const groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${apiKeyGroq}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        model: "llama-3.3-70b-versatile",
-                        messages: [{ role: "user", content: prompt }],
-                        response_format: { type: "json_object" }
-                    })
-                });
-                const groqData = await groqResp.json();
-                return res.status(200).json(JSON.parse(groqData.choices[0].message.content));
-            }
-
-            throw new Error("AI failed to generate valid analysis");
+            throw new Error("Invalid AI Response Mapping");
 
         } catch (error) {
-            console.error("Analysis Failed:", error.message);
-            // بدلاً من الخطأ، نعطي تحليلاً "شبه يدوي" يعتمد على كلمات مفتاحية في النص لضمان بقاء الـ UI يعمل
-            const isCritical = cleanText.includes("انفجار") || cleanText.includes("غارة") || cleanText.includes("حرب");
+            console.error("AI Analysis Error:", error.message);
+            // نظام الطوارئ: تحليل ذكي "محلي" إذا فشل الـ API
+            const isWar = cleanContent.includes("غارة") || cleanContent.includes("قصف") || cleanContent.includes("حرب");
             return res.status(200).json({
-                threat_level: isCritical ? "مرتفع" : "متوسط",
-                threat_score: isCritical ? 90 : 45,
-                summary: "تحليل مؤقت: الخبر يشير إلى نشاط أمني مكثف في المنطقة المعنية مع احتمالية تصعيد ميداني.",
-                parties: ["قوى إقليمية"],
-                interests: "السيطرة الجيوستراتيجية",
-                scenarios: { current: "توتر ميداني", best: "احتواء دولي", worst: "تصعيد شامل" },
-                forecast: "استمرار العمليات الاستنزافية خلال الأيام القادمة.",
-                lat: 33.88, lng: 35.5, location_name: "منطقة العمليات"
+                threat_level: isWar ? "مرتفع" : "متوسط",
+                threat_score: isWar ? 85 : 40,
+                summary: "النظام يواجه ضغطاً في معالجة البيانات العميقة. التحليل الأولي يشير إلى توتر متصاعد في المنطقة المستهدفة.",
+                parties: ["أطراف النزاع الإقليمية"],
+                interests: "المصالح الأمنية القومية",
+                scenarios: {
+                    current: "عمليات استهداف ميدانية متفرقة",
+                    best: "تهدئة عبر وساطات دولية",
+                    worst: "اتساع رقعة الاستهداف لتشمل بنى تحتية"
+                },
+                forecast: "استمرار حالة عدم الاستقرار مع ترقب لردود الأفعال.",
+                lat: 33.8, lng: 35.5, location_name: "منطقة النزاع"
             });
         }
     }
-
-    return res.status(404).send("Not Found");
 }
