@@ -1,8 +1,12 @@
 {
   "version": 2,
   "functions": {
-    "pages/api/proxy.js": {
+    "pages/api/analyze.js": {
       "maxDuration": 60,
+      "memory": 1024
+    },
+    "pages/api/proxy.js": {
+      "maxDuration": 30,
       "memory": 1024
     }
   },
