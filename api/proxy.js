@@ -5,6 +5,10 @@ export default async function handler(req, res) {
     const apiKeyGemini = process.env.GEMINI_API_KEY;
     const apiKeyNews = process.env.NEWS_API_KEY;
 
+    // منع الـ cache على كل الردود
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+
     try {
 
         // ===== جلب الأخبار =====
