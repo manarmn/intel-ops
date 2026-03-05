@@ -3,186 +3,193 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>INTEL-OPS PRO | خريطة العمليات الاستخباراتية</title>
+    <title>INTEL-OPS PRO | مركز العمليات الجيوسياسية</title>
+    
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <style>
         :root {
-            --bg: #050a0f; --panel-bg: #0b1219; --accent: #00f2ff;
+            --bg: #050a0f; --panel: #0b1219; --accent: #00f2ff;
             --text: #e0e6ed; --muted: #6b7c93; --red: #ff3e3e;
             --orange: #ff9f1c; --green: #2ec4b6; --border: #1a2634;
         }
 
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { background: var(--bg); color: var(--text); font-family: 'Cairo', sans-serif; overflow: hidden; height: 100vh; }
+        body { background: var(--bg); color: var(--text); font-family: 'Cairo', sans-serif; height: 100vh; overflow: hidden; }
 
-        /* Header */
-        .header { height: 60px; background: var(--panel-bg); border-bottom: 2px solid var(--accent); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 1000; position: relative; }
-        .logo-text { font-family: 'JetBrains Mono', monospace; font-weight: bold; font-size: 1.4rem; color: var(--accent); letter-spacing: 2px; }
+        /* الهيدر العلوي */
+        .header { height: 60px; background: var(--panel); border-bottom: 2px solid var(--accent); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 1000; position: relative; }
+        .logo { font-family: 'JetBrains Mono', monospace; font-weight: bold; font-size: 1.2rem; color: var(--accent); letter-spacing: 1px; }
 
-        /* Layout */
-        .main-layout { display: grid; grid-template-columns: 350px 1fr 350px; height: calc(100vh - 60px); gap: 1px; background: var(--border); }
-        .column { background: var(--bg); overflow-y: auto; display: flex; flex-direction: column; border-left: 1px solid var(--border); }
+        /* توزيع الشاشة */
+        .main-layout { display: grid; grid-template-columns: 380px 1fr 380px; height: calc(100vh - 60px); gap: 1px; background: var(--border); }
+        .column { background: var(--bg); overflow-y: auto; display: flex; flex-direction: column; }
 
-        /* Map Container */
-        #map { height: 300px; width: 100%; border-bottom: 1px solid var(--border); filter: grayscale(100%) invert(90%) hue-rotate(180deg); }
+        /* الخريطة */
+        #map { height: 350px; width: 100%; border-bottom: 2px solid var(--border); filter: grayscale(1) invert(0.9) hue-rotate(170deg) brightness(0.8); }
 
-        /* News Cards */
-        .news-card { padding: 15px; border-bottom: 1px solid var(--border); transition: 0.3s; cursor: pointer; }
+        /* بطاقات الأخبار */
+        .news-card { padding: 15px; border-bottom: 1px solid var(--border); transition: 0.3s; cursor: pointer; position: relative; }
         .news-card:hover { background: rgba(0, 242, 255, 0.05); }
-        .news-card.active { border-right: 4px solid var(--accent); background: rgba(0, 242, 255, 0.08); }
-        .news-title { font-size: 14px; font-weight: bold; margin-bottom: 5px; }
+        .news-card.active { border-right: 4px solid var(--accent); background: rgba(0, 242, 255, 0.1); }
+        .news-title { font-size: 14px; font-weight: bold; line-height: 1.4; margin-bottom: 8px; }
+        .news-meta { font-size: 11px; color: var(--muted); display: flex; justify-content: space-between; }
 
-        /* Intel Styling */
-        .intel-header { padding: 12px; background: var(--panel-bg); color: var(--accent); font-weight: bold; font-size: 13px; border-bottom: 1px solid var(--border); }
-        .scenario-box { background: rgba(255,255,255,0.03); padding: 12px; border-radius: 5px; margin-top: 10px; border-right: 3px solid var(--accent); font-size: 12px; }
+        /* لوحة التحليل */
+        .analysis-container { padding: 20px; }
+        .intel-header { font-size: 12px; color: var(--accent); font-family: 'JetBrains Mono'; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 5px; }
+        .threat-badge { display: inline-block; padding: 2px 10px; border-radius: 3px; font-size: 11px; font-weight: bold; margin-bottom: 10px; }
+        .scenario-item { background: rgba(255,255,255,0.03); padding: 10px; border-radius: 4px; margin-top: 10px; border-right: 3px solid var(--accent); font-size: 13px; }
 
-        /* Pulse Animation for Map Marker */
-        .pulse-marker { background: var(--red); border-radius: 50%; box-shadow: 0 0 0 rgba(255, 62, 62, 0.4); animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0px rgba(255, 62, 62, 0.7); } 100% { box-shadow: 0 0 0 15px rgba(255, 62, 62, 0); } }
+        /* أنيميشن التحميل */
+        .loading { text-align: center; padding: 40px; color: var(--accent); font-family: 'JetBrains Mono'; font-size: 12px; }
+        .dot-pulse { animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; } }
 
-        .loading-text { text-align: center; padding: 20px; color: var(--accent); font-family: 'JetBrains Mono'; }
+        /* التمرير السلس */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: var(--border); }
     </style>
 </head>
 <body>
 
     <header class="header">
-        <div class="logo-text">INTEL-OPS <span style="font-weight:300">GEO-STRAT</span></div>
-        <div id="clock" style="font-family:'JetBrains Mono'; color:var(--accent)">00:00:00 Z</div>
+        <div class="logo">SYSTEM::INTEL-OPS_V3 <span style="font-weight:300; font-size: 0.8rem;">[LIVE FEED]</span></div>
+        <div id="clock" style="font-family:'JetBrains Mono'; color:var(--accent); font-size: 14px;">00:00:00 Z</div>
     </header>
 
     <div class="main-layout">
         
         <div class="column">
-            <div class="intel-header">🌍 توزيع المسرح العملياتي</div>
             <div id="map"></div>
-            <div style="padding: 15px;">
-                <div class="intel-header" style="background:transparent; padding:0; margin-bottom:10px;">📊 إحصائيات الرصد</div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                    <div style="background:var(--panel-bg); padding:10px; text-align:center; border-radius:5px;">
+            <div class="analysis-container">
+                <div class="intel-header">GEOSPATIAL STATS</div>
+                <div id="stats-box" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div style="background:var(--panel); padding:15px; border-radius:5px; text-align:center;">
                         <small style="color:var(--muted)">إصدارات اليوم</small>
-                        <div id="count-today" style="font-size:20px; color:var(--accent); font-family:'JetBrains Mono'">0</div>
+                        <div id="count-total" style="font-size:24px; color:var(--accent); font-family:'JetBrains Mono'">0</div>
                     </div>
-                    <div style="background:var(--panel-bg); padding:10px; text-align:center; border-radius:5px;">
-                        <small style="color:var(--muted)">مناطق النشاط</small>
-                        <div id="count-regions" style="font-size:20px; color:var(--orange); font-family:'JetBrains Mono'">5</div>
+                    <div style="background:var(--panel); padding:15px; border-radius:5px; text-align:center;">
+                        <small style="color:var(--muted)">تنبيهات حرجة</small>
+                        <div style="font-size:24px; color:var(--red); font-family:'JetBrains Mono'">02</div>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="column">
-            <div class="intel-header">📡 موجز الاستخبارات المفتوحة</div>
+            <div style="padding:10px; background:var(--panel); border-bottom:1px solid var(--border); font-size:12px; font-weight:bold; color:var(--accent)">
+                📡 MONITORING GLOBAL OSINT NETWORKS...
+            </div>
             <div id="news-feed">
-                <div class="loading-text">SCANNING GLOBAL NETWORKS...</div>
+                <div class="loading dot-pulse">INITIALIZING SECURE UPLINK...</div>
             </div>
         </div>
 
-        <div class="column">
-            <div class="intel-header">🧠 التحليل الاستنباطي (AI)</div>
-            <div id="analysis-output" style="padding:20px;">
-                <div style="color:var(--muted); text-align:center; margin-top:50px;">
-                    يرجى اختيار إحداثية أو خبر للتحليل المعمق
+        <div class="column" style="background:var(--panel)">
+            <div style="padding:10px; background:var(--bg); border-bottom:1px solid var(--border); font-size:12px; font-weight:bold; color:var(--accent)">
+                🧠 COGNITIVE ANALYSIS UNIT (GEMINI-1.5)
+            </div>
+            <div id="analysis-output" class="analysis-container">
+                <div style="color:var(--muted); text-align:center; margin-top:100px; font-size:13px;">
+                    يرجى تحديد "هدف إخباري" لبدء عملية الاستنباط والتحليل الاستراتيجي
                 </div>
             </div>
         </div>
 
     </div>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        let map, markers = [];
-        const PROXY = '/api/proxy';
-
-        // إحداثيات افتراضية للمناطق الساخنة
-        const locations = {
-            "إيران": [32.4279, 53.6880],
-            "إسرائيل": [31.0461, 34.8516],
-            "غزة": [31.3547, 34.3088],
-            "لبنان": [33.8547, 35.8623],
-            "العراق": [33.3152, 44.3661],
-            "اليمن": [15.5527, 48.5164]
+        let map;
+        const geoPoints = {
+            "طهران": [35.6892, 51.3890], "تل أبيب": [32.0853, 34.7818],
+            "غزة": [31.5017, 34.4668], "بيروت": [33.8938, 35.5018],
+            "صنعاء": [15.3694, 44.1910], "بغداد": [33.3152, 44.3661]
         };
 
         // تهيئة الخريطة
         function initMap() {
-            map = L.map('map').setView([30, 45], 4);
+            map = L.map('map', { zoomControl: false }).setView([30, 45], 4);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
         }
 
-        // تحديث الساعة
+        // تحديث الساعة والوقت
         setInterval(() => {
-            document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB') + " Z";
+            document.getElementById('clock').innerText = new Date().toISOString().split('T')[1].split('.')[0] + " Z";
         }, 1000);
 
+        // جلب الأخبار
         async function fetchNews() {
             try {
-                const res = await fetch(`${PROXY}?type=news`);
+                const res = await fetch('/api/proxy?type=news');
                 const data = await res.json();
-                if (data.articles) {
-                    renderNews(data.articles);
-                    updateMapMarkers(data.articles);
-                }
-            } catch (e) { console.error("Error fetching news"); }
+                if (data.articles) renderNews(data.articles);
+            } catch (e) { console.error("News Fetch Error"); }
         }
 
         function renderNews(articles) {
             const feed = document.getElementById('news-feed');
-            document.getElementById('count-today').innerText = articles.length;
-            feed.innerHTML = articles.map((art, i) => `
-                <div class="news-card" onclick="analyzeArticle('${encodeURIComponent(art.title)}', '${encodeURIComponent(art.description)}', this)">
+            document.getElementById('count-total').innerText = articles.length;
+            feed.innerHTML = articles.map(art => `
+                <div class="news-card" onclick="startAnalysis('${encodeURIComponent(art.title)}', this)">
                     <div class="news-title">${art.title}</div>
-                    <div style="font-size:11px; color:var(--muted)">${art.source.name} • ${new Date(art.publishedAt).toLocaleTimeString('ar-EG')}</div>
+                    <div class="news-meta">
+                        <span>${art.source.name}</span>
+                        <span>${new Date(art.publishedAt).toLocaleTimeString('ar-EG')}</span>
+                    </div>
                 </div>
             `).join('');
         }
 
-        function updateMapMarkers(articles) {
-            markers.forEach(m => map.removeLayer(m));
-            Object.keys(locations).forEach(city => {
-                // إذا وجد اسم الدولة في العناوين، نضع علامة نبض حمراء
-                const hasNews = articles.some(a => a.title.includes(city));
-                if (hasNews) {
-                    const m = L.circleMarker(locations[city], {
-                        radius: 8, className: 'pulse-marker', color: '#ff3e3e', fillOpacity: 1
-                    }).addTo(map).bindPopup(`منطقة نشطة: ${city}`);
-                    markers.push(m);
-                }
-            });
-        }
-
-        async function analyzeArticle(title, desc, el) {
+        // تحليل Gemini
+        async function startAnalysis(title, element) {
+            // شكل البطاقة النشطة
             document.querySelectorAll('.news-card').forEach(c => c.classList.remove('active'));
-            el.classList.add('active');
-            
-            const output = document.getElementById('analysis-output');
-            output.innerHTML = `<div class="loading-text">جاري تشغيل محرك Gemini...</div>`;
+            element.classList.add('active');
+
+            const out = document.getElementById('analysis-output');
+            out.innerHTML = `<div class="loading dot-pulse">RUNNING HEURISTIC ANALYSIS...</div>`;
 
             try {
-                const res = await fetch(`${PROXY}?type=analyze&text=${title} ${desc}`);
+                const decodedTitle = decodeURIComponent(title);
+                const res = await fetch(`/api/proxy?type=analyze&text=${title}`);
                 const data = await res.json();
-                
-                output.innerHTML = `
-                    <div style="background:var(--panel-bg); padding:15px; border-radius:5px; border:1px solid var(--accent)">
-                        <div style="color:var(--accent); font-weight:bold; margin-bottom:10px">تقرير OSINT حرج</div>
-                        <div style="font-size:13px; margin-bottom:10px">${data.intel_summary}</div>
-                        <div style="display:flex; justify-content:space-between; font-family:'JetBrains Mono'; font-size:12px">
-                            <span>التهديد: <b style="color:var(--red)">${data.threat_level}</b></span>
-                            <span>المصداقية: <b>${data.credibility}%</b></span>
-                        </div>
+
+                // تحديث الخريطة بناءً على التحليل (بحث بسيط عن كلمات مفتاحية)
+                Object.keys(geoPoints).forEach(city => {
+                    if (decodedTitle.includes(city)) {
+                        map.setView(geoPoints[city], 7);
+                        L.circleMarker(geoPoints[city], { color: 'red', radius: 10 }).addTo(map).bindPopup("منطقة نشاط: " + city).openPopup();
+                    }
+                });
+
+                // عرض النتائج
+                out.innerHTML = `
+                    <div class="threat-badge" style="background:${data.threat_level === 'حرج' ? 'var(--red)' : 'var(--accent)'}; color:#000">
+                        مستوى التهديد: ${data.threat_level}
                     </div>
-                    <div class="scenario-box">
-                        <b style="color:var(--green)">السيناريو المرجح:</b><br>${data.scenarios[2] || data.scenarios.likely}
-                    </div>
-                    <div class="scenario-box" style="border-right-color:var(--orange)">
-                        <b style="color:var(--orange)">خطوات التحقق الميداني:</b><br>${data.osint_check}
-                    </div>
+                    <div style="font-size:12px; color:var(--muted); margin-bottom:15px;">المصداقية التقريبية: ${data.credibility}</div>
+                    
+                    <div class="intel-header">SUMMARY_REPORT</div>
+                    <p style="font-size:14px; line-height:1.6;">${data.intel_summary}</p>
+                    
+                    <div class="intel-header" style="margin-top:20px;">PROJECTED_SCENARIOS</div>
+                    ${data.scenarios.map(s => `<div class="scenario-item">${s}</div>`).join('')}
+                    
+                    <div class="intel-header" style="margin-top:20px;">OSINT_VALIDATION_STEPS</div>
+                    <div style="font-size:12px; color:var(--orange)">${data.osint_check}</div>
                 `;
-            } catch(e) { output.innerHTML = "خطأ في التحليل"; }
+            } catch (e) {
+                out.innerHTML = `<div style="color:var(--red)">CRITICAL ERROR: واجه النظام مشكلة في معالجة الـ JSON من Gemini. يرجى المحاولة مرة أخرى.</div>`;
+            }
         }
 
-        window.onload = () => { initMap(); fetchNews(); };
+        window.onload = () => {
+            initMap();
+            fetchNews();
+        };
     </script>
 </body>
 </html>
