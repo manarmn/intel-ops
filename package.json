@@ -1,14 +1,19 @@
 {
   "name": "intel-ops",
-  "version": "3.0.0",
+  "version": "4.0.0",
+  "description": "منصة استخبارات مفتوحة المصدر لتحليل أخبار الشرق الأوسط",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "vercel-build": "next build"
   },
   "dependencies": {
     "next": "^14.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
