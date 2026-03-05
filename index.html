@@ -218,7 +218,7 @@ function highlightCountry(lat, lng, color) {
     });
 }
 
-function clearMap() {
+window.clearMap = function() {
     markers.forEach(m => map.removeLayer(m));
     tensionLines.forEach(l => map.removeLayer(l));
     markers.length=0; tensionLines.length=0; analysisPoints.length=0; targetHistory.length=0;
@@ -261,7 +261,7 @@ function startTicker(text) {
 
 // ===== NEWS =====
 setInterval(loadNews, 5*60*1000);
-async function loadNews() {
+window.loadNews = async function() {
     document.getElementById('news-count').innerText='جارٍ التحديث...';
     document.getElementById('news-list').innerHTML='<div class="loading"><div class="spinner"></div><span>جارٍ فحص الشبكات...</span></div>';
     try {
@@ -287,7 +287,7 @@ async function loadNews() {
 }
 
 // ===== ANALYZE =====
-async function analyze(idx) {
+window.analyze = async function(idx) {
     const title = (window._news?.[idx]?.title||'').replace(/["\\%&+#<>]/g,' ').trim();
     if (!title) return;
     document.querySelectorAll('.news-item').forEach(el=>el.classList.remove('active'));
