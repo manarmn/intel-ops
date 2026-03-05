@@ -75,7 +75,13 @@ export default async function handler(req, res) {
                 ['https://www.jpost.com/Rss/RssFeedsHeadlines.aspx', 'Jerusalem Post', '🇮🇱', 'en'],
                 // دولية ستُترجم
                 ['https://feeds.reuters.com/reuters/worldNews', 'Reuters', '🌐', 'en'],
+                ['https://feeds.reuters.com/Reuters/worldNews', 'Reuters World', '🌐', 'en'],
+                ['https://rsshub.app/ap/topics/apf-intlnews', 'Associated Press', '🌐', 'en'],
+                ['https://apnews.com/hub/world-news?format=rss', 'AP News', '🌐', 'en'],
                 ['https://www.al-monitor.com/rss', 'Al-Monitor', '🌐', 'en'],
+                ['https://rss.nytimes.com/services/xml/rss/nyt/MiddleEast.xml', 'NY Times', '🌐', 'en'],
+                ['https://www.economist.com/middle-east-and-africa/rss.xml', 'The Economist', '🌐', 'en'],
+                ['https://foreignpolicy.com/feed/', 'Foreign Policy', '🌐', 'en'],
             ];
 
             // جلب كل المصادر بالتوازي الكامل
@@ -111,6 +117,46 @@ export default async function handler(req, res) {
                         title: a.title, publishedAt: a.publishedAt,
                         source: { name: a.source?.name || 'GNews', flag: '📰' }, url: a.url, lang: 'ar'
                     }));
+                }
+            } catch(e) {}
+
+            // ===== GDELT Project - أضخم قاعدة أخبار في العالم =====
+            try {
+                const gdeltUrl = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent('middle east OR iran OR israel OR iraq OR saudi OR syria')}&mode=artlist&maxrecords=20&format=json&sort=datedesc&sourcelang=arabic`;
+                const gdResp = await fetch(gdeltUrl, { signal: AbortSignal.timeout(7000) });
+                if (gdResp.ok) {
+                    const gdData = await gdResp.json();
+                    gdData.articles?.forEach(a => {
+                        if (a.title && a.title.length > 5) {
+                            allArticles.push({
+                                title: a.title,
+                                publishedAt: a.seendate ? new Date(a.seendate.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z')).toISOString() : new Date().toISOString(),
+                                source: { name: a.domain || 'GDELT', flag: '🌍' },
+                                url: a.url || '',
+                                lang: 'ar'
+                            });
+                        }
+                    });
+                }
+            } catch(e) {}
+
+            // GDELT إنجليزي أيضاً (سيُترجم)
+            try {
+                const gdeltEnUrl = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent('middle east iran israel iraq')}&mode=artlist&maxrecords=15&format=json&sort=datedesc&sourcelang=english`;
+                const gdEnResp = await fetch(gdeltEnUrl, { signal: AbortSignal.timeout(7000) });
+                if (gdEnResp.ok) {
+                    const gdEnData = await gdEnResp.json();
+                    gdEnData.articles?.forEach(a => {
+                        if (a.title && a.title.length > 5) {
+                            allArticles.push({
+                                title: a.title,
+                                publishedAt: a.seendate ? new Date(a.seendate.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z')).toISOString() : new Date().toISOString(),
+                                source: { name: a.domain || 'GDELT', flag: '🌍' },
+                                url: a.url || '',
+                                lang: 'en'
+                            });
+                        }
+                    });
                 }
             } catch(e) {}
 
