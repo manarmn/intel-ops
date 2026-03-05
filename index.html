@@ -1,547 +1,382 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <title>INTEL-OPS // PRO_V3</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <style>
-        :root {
-            --bg: #020608; --panel: #070d12; --panel2: #0b1520;
-            --accent: #00f2ff; --red: #ff2d2d; --orange: #ff8c00;
-            --green: #00ff88; --yellow: #ffe600;
-            --text: #c8d8e8; --muted: #3d5166; --border: #112030;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: var(--bg); color: var(--text); font-family: 'Cairo', sans-serif; height: 100vh; overflow: hidden; }
-        body::before {
-            content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
-            background-image: linear-gradient(rgba(0,242,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,242,255,0.03) 1px, transparent 1px);
-            background-size: 40px 40px;
-        }
-        .scan-overlay { position: fixed; inset: 0; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px); pointer-events: none; z-index: 9999; }
-
-        /* HEADER */
-        .header { height: 48px; background: var(--panel); border-bottom: 1px solid var(--accent); display: flex; align-items: center; padding: 0 16px; justify-content: space-between; position: relative; z-index: 100; box-shadow: 0 0 20px rgba(0,242,255,0.1); }
-        .header-logo { font-family: 'JetBrains Mono'; color: var(--accent); font-weight: 700; font-size: 14px; letter-spacing: 2px; display: flex; align-items: center; gap: 10px; }
-        .dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; animation: pulse 1.5s ease-in-out infinite; box-shadow: 0 0 8px var(--green); }
-        .header-right { display: flex; align-items: center; gap: 16px; font-family: 'JetBrains Mono'; font-size: 12px; }
-        .status-pill { padding: 3px 10px; border-radius: 2px; font-size: 11px; font-weight: 700; }
-
-        /* LAYOUT */
-        .dashboard { display: grid; grid-template-columns: 320px 1fr 420px; grid-template-rows: 1fr; height: calc(100vh - 48px); position: relative; z-index: 1; }
-        .col { border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
-        .col-header { padding: 9px 14px; background: rgba(0,0,0,0.5); border-bottom: 1px solid var(--border); font-family: 'JetBrains Mono'; font-size: 11px; color: var(--accent); letter-spacing: 1px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
-        .badge { background: var(--accent); color: #000; padding: 1px 7px; border-radius: 2px; font-size: 10px; font-weight: 700; }
-        .scroll { overflow-y: auto; flex: 1; padding: 12px; }
-        .scroll::-webkit-scrollbar { width: 3px; }
-        .scroll::-webkit-scrollbar-thumb { background: var(--border); }
-
-        /* MAP */
-        #map { height: 300px; min-height: 300px; flex-shrink: 0; filter: saturate(0.15) brightness(0.6) hue-rotate(190deg) contrast(1.1); border-bottom: 1px solid var(--border); }
-        .map-label { position: absolute; top: 8px; right: 8px; z-index: 1000; font-family: 'JetBrains Mono'; font-size: 10px; color: var(--accent); background: rgba(2,6,8,0.9); padding: 4px 8px; border: 1px solid var(--accent); pointer-events: none; }
-
-        /* STATS */
-        .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
-        .stat-row:last-child { border-bottom: none; }
-        .stat-label { color: var(--muted); font-size: 11px; }
-        .stat-value { font-family: 'JetBrains Mono'; font-size: 12px; }
-        .target-item { display: flex; align-items: center; gap: 8px; padding: 5px 8px; margin-bottom: 3px; background: var(--panel2); border-radius: 3px; font-size: 11px; border-right: 2px solid transparent; transition: 0.2s; }
-        .target-item:hover { border-right-color: var(--accent); }
-        .target-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-
-        /* NEWS */
-        .news-item { background: var(--panel2); padding: 11px 13px; margin-bottom: 7px; border-radius: 3px; cursor: pointer; border-right: 3px solid transparent; transition: all 0.2s; }
-        .news-item:hover { background: #0f1d2a; border-right-color: var(--muted); }
-        .news-item.active { background: #0e1e2e; border-right-color: var(--accent); box-shadow: 0 0 15px rgba(0,242,255,0.07); }
-        .news-title { font-size: 13px; font-weight: 600; line-height: 1.5; margin-bottom: 5px; }
-        .news-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono'; }
-        .news-source { color: var(--accent); opacity: 0.7; }
-
-        /* ANALYSIS CARD */
-        .analysis-card { background: var(--panel2); border: 1px solid var(--border); border-radius: 4px; padding: 16px; animation: fadeIn 0.3s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-
-        .threat-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
-        .threat-badge { padding: 4px 14px; border-radius: 2px; font-weight: 700; font-size: 12px; font-family: 'JetBrains Mono'; letter-spacing: 1px; }
-        .threat-critical { background: var(--red); color: #fff; box-shadow: 0 0 12px rgba(255,45,45,0.4); }
-        .threat-high { background: var(--orange); color: #000; box-shadow: 0 0 10px rgba(255,140,0,0.3); }
-        .threat-medium { background: var(--yellow); color: #000; }
-        .threat-low { background: var(--green); color: #000; }
-
-        /* THREAT SCORE BAR */
-        .score-wrap { margin-bottom: 14px; }
-        .score-label { font-family: 'JetBrains Mono'; font-size: 10px; color: var(--muted); letter-spacing: 2px; margin-bottom: 5px; display: flex; justify-content: space-between; }
-        .score-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
-        .score-fill { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
-
-        /* SECTIONS */
-        .section { margin-bottom: 13px; }
-        .section-label { font-family: 'JetBrains Mono'; font-size: 10px; color: var(--accent); letter-spacing: 2px; margin-bottom: 6px; opacity: 0.8; }
-        .section-text { font-size: 12px; line-height: 1.7; color: #a0b4c8; }
-
-        /* PARTIES */
-        .parties-list { display: flex; flex-wrap: wrap; gap: 5px; }
-        .party-tag { background: var(--panel); border: 1px solid var(--border); padding: 3px 10px; border-radius: 2px; font-size: 11px; color: var(--accent); font-family: 'JetBrains Mono'; }
-
-        /* SCENARIOS */
-        .scenarios-grid { display: flex; flex-direction: column; gap: 6px; }
-        .scenario-item { padding: 8px 12px; border-radius: 3px; font-size: 12px; line-height: 1.5; border-right: 3px solid; }
-        .scenario-current { background: rgba(0,132,255,0.08); border-color: var(--accent2, #0084ff); color: #8ab4d4; }
-        .scenario-best { background: rgba(0,255,136,0.07); border-color: var(--green); color: #7dd4a8; }
-        .scenario-worst { background: rgba(255,45,45,0.07); border-color: var(--red); color: #d4827f; }
-        .scenario-label { font-family: 'JetBrains Mono'; font-size: 9px; letter-spacing: 1px; margin-bottom: 3px; opacity: 0.7; }
-
-        /* LOCATION BOX */
-        .location-box { display: flex; align-items: center; gap: 10px; background: var(--panel); padding: 8px 12px; border-radius: 3px; border: 1px solid var(--border); }
-        .location-name { font-weight: 700; font-size: 13px; }
-        .location-coords { font-family: 'JetBrains Mono'; font-size: 10px; color: var(--muted); margin-top: 2px; }
-
-        /* SOURCE TAG */
-        .source-tag { font-family: 'JetBrains Mono'; font-size: 9px; padding: 2px 7px; border-radius: 2px; letter-spacing: 1px; }
-        .source-groq { background: rgba(0,242,255,0.1); color: var(--accent); border: 1px solid rgba(0,242,255,0.2); }
-        .source-gemini { background: rgba(255,140,0,0.1); color: var(--orange); border: 1px solid rgba(255,140,0,0.2); }
-
-        /* LOADING */
-        .loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; gap: 12px; color: var(--accent); font-family: 'JetBrains Mono'; font-size: 12px; }
-        .spinner { width: 28px; height: 28px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes pulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.4; transform:scale(0.8); } }
-
-        .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 180px; color: var(--muted); font-size: 13px; gap: 8px; text-align: center; }
-        .error-msg { background: rgba(255,45,45,0.08); border: 1px solid rgba(255,45,45,0.25); color: var(--red); padding: 10px 14px; border-radius: 3px; font-size: 12px; }
-        .refresh-btn { font-family: 'JetBrains Mono'; font-size: 10px; background: transparent; border: 1px solid var(--accent); color: var(--accent); padding: 3px 10px; cursor: pointer; border-radius: 2px; transition: 0.2s; }
-        .refresh-btn:hover { background: rgba(0,242,255,0.1); }
-
-        /* TICKER */
-        .ticker-wrap { overflow: hidden; background: rgba(0,242,255,0.04); border-top: 1px solid var(--border); padding: 0 8px; display: flex; align-items: center; height: 26px; flex-shrink: 0; font-size: 11px; font-family: 'JetBrains Mono'; color: var(--muted); }
-        .ticker-label { color: var(--accent); font-size: 10px; white-space: nowrap; margin-left: 10px; }
-        #ticker-text { white-space: nowrap; display: inline-block; }
-        
-    </style>
+<meta charset="UTF-8">
+<title>INTEL-OPS // PRO_V3</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+:root {
+    --bg:#020608;--panel:#070d12;--panel2:#0b1520;
+    --accent:#00f2ff;--red:#ff2d2d;--orange:#ff8c00;
+    --green:#00ff88;--yellow:#ffe600;
+    --text:#c8d8e8;--muted:#3d5166;--border:#112030;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Cairo',sans-serif;height:100vh;overflow:hidden}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+background-image:linear-gradient(rgba(0,242,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,242,255,0.03) 1px,transparent 1px);
+background-size:40px 40px}
+.scan{position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:9999}
+.header{height:48px;background:var(--panel);border-bottom:1px solid var(--accent);display:flex;align-items:center;padding:0 16px;justify-content:space-between;position:relative;z-index:100;box-shadow:0 0 20px rgba(0,242,255,0.1)}
+.logo{font-family:'JetBrains Mono';color:var(--accent);font-weight:700;font-size:14px;letter-spacing:2px;display:flex;align-items:center;gap:10px}
+.dot{width:8px;height:8px;background:var(--green);border-radius:50%;animation:blink 1.5s ease-in-out infinite;box-shadow:0 0 8px var(--green)}
+.hdr-r{display:flex;align-items:center;gap:16px;font-family:'JetBrains Mono';font-size:12px}
+.pill{padding:3px 10px;border-radius:2px;font-size:11px;font-weight:700}
+.dash{display:grid;grid-template-columns:320px 1fr 420px;height:calc(100vh - 48px);position:relative;z-index:1}
+.col{border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.col-hdr{padding:9px 14px;background:rgba(0,0,0,0.5);border-bottom:1px solid var(--border);font-family:'JetBrains Mono';font-size:11px;color:var(--accent);letter-spacing:1px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.bdg{background:var(--accent);color:#000;padding:1px 7px;border-radius:2px;font-size:10px;font-weight:700}
+.scroll{overflow-y:auto;flex:1;padding:12px}
+.scroll::-webkit-scrollbar{width:3px}
+.scroll::-webkit-scrollbar-thumb{background:var(--border)}
+#map{height:280px;width:100%;flex-shrink:0;border-bottom:1px solid var(--border)}
+.map-wrap{position:relative;flex-shrink:0}
+.map-lbl{position:absolute;top:8px;right:8px;z-index:1000;font-family:'JetBrains Mono';font-size:10px;color:var(--accent);background:rgba(2,6,8,0.9);padding:4px 8px;border:1px solid var(--accent);pointer-events:none}
+.map-search{position:absolute;bottom:8px;left:8px;right:8px;z-index:1000;display:flex;gap:4px}
+.map-search input{flex:1;background:rgba(2,6,8,0.92);border:1px solid var(--muted);color:var(--text);padding:5px 9px;font-family:Cairo,sans-serif;font-size:11px;border-radius:2px;outline:none}
+.map-search input:focus{border-color:var(--accent)}
+.map-search button{background:rgba(255,45,45,0.15);border:1px solid var(--red);color:var(--red);padding:4px 8px;font-size:10px;cursor:pointer;border-radius:2px;font-family:'JetBrains Mono'}
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px}
+.stat-row:last-child{border-bottom:none}
+.stat-lbl{color:var(--muted);font-size:11px}
+.stat-val{font-family:'JetBrains Mono';font-size:12px}
+.tgt{display:flex;align-items:center;gap:8px;padding:5px 8px;margin-bottom:3px;background:var(--panel2);border-radius:3px;font-size:11px;border-right:2px solid transparent;transition:.2s}
+.tgt:hover{border-right-color:var(--accent)}
+.tgt-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.news-item{background:var(--panel2);padding:11px 13px;margin-bottom:7px;border-radius:3px;cursor:pointer;border-right:3px solid transparent;transition:all .2s}
+.news-item:hover{background:#0f1d2a;border-right-color:var(--muted)}
+.news-item.active{background:#0e1e2e;border-right-color:var(--accent);box-shadow:0 0 15px rgba(0,242,255,0.07)}
+.news-title{font-size:13px;font-weight:600;line-height:1.5;margin-bottom:5px}
+.news-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);font-family:'JetBrains Mono'}
+.news-src{color:var(--accent);opacity:.7}
+.card{background:var(--panel2);border:1px solid var(--border);border-radius:4px;padding:16px;animation:fadeIn .3s ease}
+.threat-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.tbadge{padding:4px 14px;border-radius:2px;font-weight:700;font-size:12px;font-family:'JetBrains Mono';letter-spacing:1px}
+.tc{background:var(--red);color:#fff;box-shadow:0 0 12px rgba(255,45,45,0.4)}
+.th{background:var(--orange);color:#000;box-shadow:0 0 10px rgba(255,140,0,0.3)}
+.tm{background:var(--yellow);color:#000}
+.tl{background:var(--green);color:#000}
+.score-wrap{margin-bottom:14px}
+.score-lbl{font-family:'JetBrains Mono';font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:5px;display:flex;justify-content:space-between}
+.score-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+.score-fill{height:100%;border-radius:3px;transition:width .8s ease}
+.sec{margin-bottom:13px}
+.sec-lbl{font-family:'JetBrains Mono';font-size:10px;color:var(--accent);letter-spacing:2px;margin-bottom:6px;opacity:.8}
+.sec-txt{font-size:12px;line-height:1.7;color:#a0b4c8}
+.tags{display:flex;flex-wrap:wrap;gap:5px}
+.tag{background:var(--panel);border:1px solid var(--border);padding:3px 10px;border-radius:2px;font-size:11px;color:var(--accent);font-family:'JetBrains Mono'}
+.scenarios{display:flex;flex-direction:column;gap:6px}
+.sc-item{padding:8px 12px;border-radius:3px;font-size:12px;line-height:1.5;border-right:3px solid}
+.sc-cur{background:rgba(0,132,255,0.08);border-color:#0084ff;color:#8ab4d4}
+.sc-best{background:rgba(0,255,136,0.07);border-color:var(--green);color:#7dd4a8}
+.sc-worst{background:rgba(255,45,45,0.07);border-color:var(--red);color:#d4827f}
+.sc-lbl{font-family:'JetBrains Mono';font-size:9px;letter-spacing:1px;margin-bottom:3px;opacity:.7}
+.loc-box{display:flex;align-items:center;gap:10px;background:var(--panel);padding:8px 12px;border-radius:3px;border:1px solid var(--border)}
+.src-tag{font-family:'JetBrains Mono';font-size:9px;padding:2px 7px;border-radius:2px;letter-spacing:1px}
+.sg{background:rgba(0,242,255,0.1);color:var(--accent);border:1px solid rgba(0,242,255,0.2)}
+.sm{background:rgba(255,140,0,0.1);color:var(--orange);border:1px solid rgba(255,140,0,0.2)}
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;gap:12px;color:var(--accent);font-family:'JetBrains Mono';font-size:12px}
+.spinner{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:180px;color:var(--muted);font-size:13px;gap:8px;text-align:center}
+.err{background:rgba(255,45,45,0.08);border:1px solid rgba(255,45,45,0.25);color:var(--red);padding:10px 14px;border-radius:3px;font-size:12px}
+.rbtn{font-family:'JetBrains Mono';font-size:10px;background:transparent;border:1px solid var(--accent);color:var(--accent);padding:3px 10px;cursor:pointer;border-radius:2px;transition:.2s}
+.rbtn:hover{background:rgba(0,242,255,0.1)}
+.ticker-wrap{overflow:hidden;background:rgba(0,242,255,0.04);border-top:1px solid var(--border);padding:0 8px;display:flex;align-items:center;height:26px;flex-shrink:0;font-size:11px;font-family:'JetBrains Mono';color:var(--muted)}
+.ticker-lbl{color:var(--accent);font-size:10px;white-space:nowrap;margin-left:10px}
+#ticker{white-space:nowrap;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes blink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes mapPulse{0%{transform:scale(.5);opacity:.7}100%{transform:scale(3);opacity:0}}
+.leaflet-popup-content-wrapper{background:#070d12!important;border:1px solid #00f2ff!important;border-radius:3px!important;box-shadow:0 0 15px rgba(0,242,255,0.2)!important}
+.leaflet-popup-content{color:#c8d8e8!important;font-family:Cairo,sans-serif!important;direction:rtl}
+.leaflet-popup-tip{background:#00f2ff!important}
+</style>
 </head>
 <body>
-<div class="scan-overlay"></div>
-
+<div class="scan"></div>
 <header class="header">
-    <div class="header-logo"><div class="dot"></div>INTEL-OPS // PRO_V3</div>
-    <div class="header-right">
+    <div class="logo"><div class="dot"></div>INTEL-OPS // PRO_V3</div>
+    <div class="hdr-r">
         <span id="news-count" style="color:var(--muted);font-size:11px">تحميل...</span>
-        <span class="status-pill" style="background:rgba(0,255,136,0.12);color:var(--green);border:1px solid rgba(0,255,136,0.25)">● ONLINE</span>
+        <span class="pill" style="background:rgba(0,255,136,0.12);color:var(--green);border:1px solid rgba(0,255,136,0.25)">● ONLINE</span>
         <span id="clock" style="color:var(--accent)">00:00:00 Z</span>
     </div>
 </header>
-
-<div class="dashboard">
-
-    <!-- COL 1: خريطة + إحصائيات -->
+<div class="dash">
+    <!-- COL 1 -->
     <div class="col">
-        <div style="position:relative;flex-shrink:0;height:300px;min-height:300px">
-            <div id="map" style="height:300px;width:100%"></div>
-            <div class="map-label">GEO // TACTICAL VIEW</div>
-            <div style="position:absolute;bottom:8px;left:8px;right:8px;z-index:1000;display:flex;gap:4px">
-                <input id="geo-search" type="text" placeholder="🔍 ابحث عن موقع..." 
-                    style="flex:1;background:rgba(2,6,8,0.9);border:1px solid var(--muted);color:var(--text);padding:4px 8px;font-family:Cairo,sans-serif;font-size:11px;border-radius:2px;outline:none"
-                    oninput="geoSearch(this.value)" />
-                <button onclick="clearMapLayers()" style="background:rgba(255,45,45,0.15);border:1px solid var(--red);color:var(--red);padding:4px 8px;font-size:10px;cursor:pointer;border-radius:2px;font-family:JetBrains Mono">CLR</button>
+        <div class="map-wrap">
+            <div id="map"></div>
+            <div class="map-lbl">GEO // TACTICAL VIEW</div>
+            <div class="map-search">
+                <input id="geo-input" type="text" placeholder="🔍 ابحث عن موقع جغرافي...">
+                <button onclick="clearMap()">CLR</button>
             </div>
         </div>
-        <div class="col-header">📊 GEOSPATIAL STATS <span class="badge" id="targets-count">0</span></div>
+        <div class="col-hdr">📊 GEOSPATIAL STATS <span class="bdg" id="tgt-count">0</span></div>
         <div class="scroll" style="padding:12px">
-            <div class="stat-row"><span class="stat-label">أهداف نشطة</span><span class="stat-value" id="stat-targets" style="color:var(--accent)">0</span></div>
-            <div class="stat-row"><span class="stat-label">آخر موقع</span><span class="stat-value" id="stat-location" style="font-size:11px">--</span></div>
-            <div class="stat-row"><span class="stat-label">مستوى التهديد</span><span class="stat-value" id="stat-threat">--</span></div>
-            <div class="stat-row"><span class="stat-label">محرك التحليل</span><span class="stat-value" id="stat-engine" style="color:var(--muted)">--</span></div>
-            <div class="stat-row"><span class="stat-label">آخر تحديث</span><span class="stat-value" id="stat-time" style="color:var(--muted);font-size:10px">--</span></div>
-            <div id="targets-list" style="margin-top:8px"></div>
+            <div class="stat-row"><span class="stat-lbl">أهداف نشطة</span><span class="stat-val" id="s-targets" style="color:var(--accent)">0</span></div>
+            <div class="stat-row"><span class="stat-lbl">آخر موقع</span><span class="stat-val" id="s-loc" style="font-size:11px">--</span></div>
+            <div class="stat-row"><span class="stat-lbl">مستوى التهديد</span><span class="stat-val" id="s-threat">--</span></div>
+            <div class="stat-row"><span class="stat-lbl">محرك التحليل</span><span class="stat-val" id="s-engine" style="color:var(--muted)">--</span></div>
+            <div class="stat-row"><span class="stat-lbl">آخر تحديث</span><span class="stat-val" id="s-time" style="color:var(--muted);font-size:10px">--</span></div>
+            <div id="tgt-list" style="margin-top:8px"></div>
         </div>
     </div>
-
-    <!-- COL 2: الأخبار -->
+    <!-- COL 2 -->
     <div class="col">
-        <div class="col-header">
-            📡 تغذية OSINT المباشرة
-            <button class="refresh-btn" onclick="loadNews()">↺ تحديث</button>
-        </div>
-        <div id="news-list" class="scroll">
-            <div class="loading"><div class="spinner"></div><span>جارٍ فحص الشبكات...</span></div>
-        </div>
-        <div class="ticker-wrap">
-            <span class="ticker-label">LIVE ▶</span>
-            <span id="ticker-text">جارٍ تحميل التغذية...</span>
-        </div>
+        <div class="col-hdr">📡 تغذية OSINT المباشرة <button class="rbtn" onclick="loadNews()">↺ تحديث</button></div>
+        <div id="news-list" class="scroll"><div class="loading"><div class="spinner"></div><span>جارٍ فحص الشبكات...</span></div></div>
+        <div class="ticker-wrap"><span class="ticker-lbl">LIVE ▶</span><span id="ticker">جارٍ تحميل...</span></div>
     </div>
-
-    <!-- COL 3: التحليل -->
+    <!-- COL 3 -->
     <div class="col">
-        <div class="col-header">
-            🧠 وحدة المعالجة المعرفية
-            <span id="analysis-status" style="color:var(--muted);font-size:10px">STANDBY</span>
-        </div>
-        <div id="analysis-view" class="scroll">
-            <div class="empty-state"><div style="font-size:28px;opacity:0.3">🎯</div><div>اختر خبراً لبدء التحليل الاستراتيجي</div></div>
-        </div>
+        <div class="col-hdr">🧠 وحدة المعالجة المعرفية <span id="a-status" style="color:var(--muted);font-size:10px">STANDBY</span></div>
+        <div id="a-view" class="scroll"><div class="empty"><div style="font-size:28px;opacity:.3">🎯</div><div>اختر خبراً لبدء التحليل الاستراتيجي</div></div></div>
     </div>
-
 </div>
-
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// ===== تهيئة الخريطة =====
-const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([30, 45], 4);
+document.addEventListener("DOMContentLoaded", function initApp() {
+// ===== CLOCK =====
+setInterval(() => {
+    document.getElementById('clock').innerText = new Date().toUTCString().slice(17,25) + ' Z';
+}, 1000);
 
-// طبقة داكنة من CartoDB
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19
-}).addTo(map);
+// ===== MAP =====
+const map = L.map('map', { zoomControl:false, attributionControl:false });
+map.setView([30, 45], 4);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-setTimeout(() => { try { map.invalidateSize(); } catch(e){} }, 300);
+// إصلاح حجم الخريطة بعد التحميل
+window.addEventListener('load', () => setTimeout(() => map.invalidateSize(), 100));
 
-let countriesLayer = null;
-let tensionLines = [];
-const markers = [];
-const targetHistory = [];
-const analysisPoints = [];
-
-// حدود الدول من OSM
-async function loadCountries() {
-    try {
-        const resp = await fetch('https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson', { signal: AbortSignal.timeout(8000) });
-        if (!resp.ok) return;
-        const data = await resp.json();
-        countriesLayer = L.geoJSON(data, {
-            style: { color: 'rgba(0,242,255,0.12)', weight: 0.8, fillOpacity: 0, dashArray: '3,6' }
-        }).addTo(map);
-    } catch(e) {}
-}
-loadCountries();
-
-// نقاط التوتر الأساسية كدوائر ثابتة بدل heatmap
-const hotspots = [
-    { lat: 31.5, lng: 34.8, color: '#ff2d2d', name: 'غزة' },
-    { lat: 33.5, lng: 36.3, color: '#ff8c00', name: 'سوريا' },
-    { lat: 33.3, lng: 44.4, color: '#ff8c00', name: 'العراق' },
-    { lat: 32.0, lng: 53.0, color: '#ffe600', name: 'إيران' },
-    { lat: 15.3, lng: 44.2, color: '#ff8c00', name: 'اليمن' },
-    { lat: 33.9, lng: 35.5, color: '#ffe600', name: 'لبنان' },
-];
-hotspots.forEach(h => {
-    L.circleMarker([h.lat, h.lng], {
-        radius: 6, color: h.color, fillColor: h.color,
-        fillOpacity: 0.4, weight: 1, opacity: 0.6
-    }).bindTooltip(h.name, { permanent: false, direction: 'top', className: 'tactical-tooltip' }).addTo(map);
+// نقاط التوتر الثابتة
+[
+    [31.5,34.8,'#ff2d2d','غزة'],
+    [33.3,44.4,'#ff8c00','العراق'],
+    [33.5,36.3,'#ff8c00','سوريا'],
+    [32.0,53.0,'#ffe600','إيران'],
+    [15.3,44.2,'#ff8c00','اليمن'],
+    [33.9,35.5,'#ffe600','لبنان'],
+    [40.5,49.9,'#ffe600','أذربيجان'],
+].forEach(([lat,lng,c,name]) => {
+    L.circleMarker([lat,lng],{radius:5,color:c,fillColor:c,fillOpacity:.5,weight:1})
+     .bindTooltip(name,{className:'',permanent:false}).addTo(map);
 });
 
-// ساعة
-setInterval(() => { document.getElementById('clock').innerText = new Date().toUTCString().slice(17,25) + ' Z'; }, 1000);
-// تحديث تلقائي كل 5 دقائق
-setInterval(loadNews, 5 * 60 * 1000);
+// حدود الدول
+fetch('https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson')
+    .then(r => r.ok ? r.json() : null).then(data => {
+        if (!data) return;
+        window._countriesLayer = L.geoJSON(data, {
+            style: { color:'rgba(0,242,255,0.1)', weight:0.7, fillOpacity:0, dashArray:'3,6' }
+        }).addTo(map);
+    }).catch(()=>{});
 
-// ===== جلب الأخبار =====
-async function loadNews() {
-    const list = document.getElementById('news-list');
-    document.getElementById('news-count').innerText = 'جارٍ التحديث...';
-    list.innerHTML = `<div class="loading"><div class="spinner"></div><span>جارٍ فحص الشبكات...</span></div>`;
-    try {
-        const res = await fetch('/api/proxy?type=news');
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (!data.articles?.length) throw new Error('لا توجد أخبار');
-        document.getElementById('news-count').innerText = `${data.articles.length} خبر`;
-        window._newsItems = data.articles;
-        list.innerHTML = data.articles.map((art, idx) => {
-            const time = new Date(art.publishedAt).toLocaleTimeString('ar-IQ', { hour:'2-digit', minute:'2-digit' });
-            const flag = art.source?.flag || '📰';
-            const srcName = art.source?.name || 'مجهول';
-            return `<div class="news-item" id="news-${idx}" onclick="analyzeNews(${idx})">
-                <div class="news-title">${art.title}</div>
-                <div class="news-meta">
-                    <span class="news-source">${flag} ${srcName}</span>
-                    <span style="font-family:JetBrains Mono;font-size:10px;color:var(--muted)">${time}</span>
-                </div>
-            </div>`;
-        }).join('');
-        // تحديث التيكر بنظام JS بطيء
-        startTicker(data.articles.map(a => a.title).join('   ◆   '));
-        document.getElementById('stat-time').innerText = new Date().toLocaleTimeString('ar-IQ');
-    } catch(e) {
-        list.innerHTML = `<div class="error-msg">⚠️ فشل الاتصال: ${e.message}</div>`;
-        document.getElementById('news-count').innerText = 'خطأ';
-    }
-}
+const markers = [], analysisPoints = [], tensionLines = [], targetHistory = [];
 
-// ===== تحليل الخبر =====
-async function analyzeNews(idx) {
-    const rawTitle = (window._newsItems?.[idx]?.title || '').replace(/["\\%&+#]/g, ' ').trim();
-    const encodedTitle = encodeURIComponent(rawTitle);
-    document.querySelectorAll('.news-item').forEach(i => i.classList.remove('active'));
-    const el = document.getElementById(`news-${idx}`);
-    if (el) el.classList.add('active');
-
-    const view = document.getElementById('analysis-view');
-    const statusEl = document.getElementById('analysis-status');
-    statusEl.innerText = 'PROCESSING...'; statusEl.style.color = 'var(--yellow)';
-    view.innerHTML = `<div class="loading"><div class="spinner"></div><span>تحليل الوضع الاستراتيجي...</span></div>`;
-
-    try {
-        const res = await fetch(`/api/proxy?type=analyze&text=${encodedTitle}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const d = await res.json();
-
-        const lat = parseFloat(d.lat), lng = parseFloat(d.lng);
-        const hasCoords = !isNaN(lat) && !isNaN(lng);
-        const threatColor = getThreatColor(d.threat_level);
-        const threatClass = getThreatClass(d.threat_level);
-        const score = Math.min(100, Math.max(0, parseInt(d.threat_score) || 50));
-
-        // خريطة متكاملة
-        if (hasCoords) {
-            addTacticalMarker(lat, lng, threatColor, d.location_name, score, d.threat_level);
-            highlightCountry(lat, lng, threatColor);
-            if (analysisPoints.length > 1) drawTensionLines(threatColor);
-            updateHeatLayer(lat, lng, score);
-            map.flyTo([lat, lng], 6, { duration: 1.5, easeLinearity: 0.3 });
-            updateStats(d, threatColor);
-        }
-
-        // السيناريوهات
-        const scenariosHTML = d.scenarios ? `
-        <div class="section">
-            <div class="section-label">// السيناريوهات</div>
-            <div class="scenarios-grid">
-                <div class="scenario-item scenario-current">
-                    <div class="scenario-label">◈ الوضع الراهن</div>
-                    ${d.scenarios.current || '--'}
-                </div>
-                <div class="scenario-item scenario-best">
-                    <div class="scenario-label">▲ أفضل سيناريو</div>
-                    ${d.scenarios.best || '--'}
-                </div>
-                <div class="scenario-item scenario-worst">
-                    <div class="scenario-label">▼ أسوأ سيناريو</div>
-                    ${d.scenarios.worst || '--'}
-                </div>
-            </div>
-        </div>` : '';
-
-        // الأطراف
-        const partiesHTML = d.parties?.length ? `
-        <div class="section">
-            <div class="section-label">// الأطراف المعنية</div>
-            <div class="parties-list">${d.parties.map(p => `<span class="party-tag">${p}</span>`).join('')}</div>
-        </div>` : '';
-
-        // المصالح
-        const interestsHTML = d.interests ? `
-        <div class="section">
-            <div class="section-label">// المصالح والدوافع</div>
-            <p class="section-text">${d.interests}</p>
-        </div>` : '';
-
-        // التوقعات
-        const forecastHTML = d.forecast ? `
-        <div class="section">
-            <div class="section-label">// التوقعات (30 يوماً)</div>
-            <p class="section-text">${d.forecast}</p>
-        </div>` : '';
-
-        view.innerHTML = `
-        <div class="analysis-card">
-            <div class="threat-header">
-                <span class="threat-badge ${threatClass}">${d.threat_level || '--'}</span>
-                <div style="display:flex;align-items:center;gap:8px">
-                    <span class="source-tag ${d._source === 'groq' ? 'source-groq' : 'source-gemini'}">${d._source?.toUpperCase() || 'AI'}</span>
-                    <span style="font-family:JetBrains Mono;font-size:10px;color:var(--muted)">${d.location_name || '--'}</span>
-                </div>
-            </div>
-
-            <div class="score-wrap">
-                <div class="score-label"><span>// مؤشر الخطر</span><span style="color:${threatColor}">${score}/100</span></div>
-                <div class="score-bar"><div class="score-fill" style="width:${score}%;background:${threatColor}"></div></div>
-            </div>
-
-            <div class="section">
-                <div class="section-label">// التقرير الاستراتيجي</div>
-                <p class="section-text">${d.summary || '--'}</p>
-            </div>
-
-            ${partiesHTML}
-            ${interestsHTML}
-            ${scenariosHTML}
-            ${forecastHTML}
-
-            <div class="section">
-                <div class="section-label">// الموقع الجغرافي</div>
-                <div class="location-box">
-                    <span style="font-size:16px">📍</span>
-                    <div>
-                        <div class="location-name">${d.location_name || 'غير محدد'}</div>
-                        <div class="location-coords">${hasCoords ? `${lat.toFixed(3)}° N, ${lng.toFixed(3)}° E` : 'إحداثيات غير متاحة'}</div>
-                    </div>
-                </div>
-            </div>
-        </div>`;
-
-        statusEl.innerText = 'COMPLETE'; statusEl.style.color = 'var(--green)';
-        setTimeout(() => { statusEl.innerText = 'STANDBY'; statusEl.style.color = 'var(--muted)'; }, 3000);
-
-    } catch(e) {
-        view.innerHTML = `<div class="error-msg">⚠️ فشل التحليل: ${e.message}</div>`;
-        statusEl.innerText = 'ERROR'; statusEl.style.color = 'var(--red)';
-        setTimeout(() => { statusEl.innerText = 'STANDBY'; statusEl.style.color = 'var(--muted)'; }, 3000);
-    }
-}
-
-// ===== وظائف الخريطة المتكاملة =====
-
-function addTacticalMarker(lat, lng, color, name, score, level) {
-    const size = 10 + Math.floor(score / 15);
-    const pulseIcon = L.divIcon({
-        className: '',
-        html: '<div style="position:relative;width:' + (size*4) + 'px;height:' + (size*4) + 'px">' +
-              '<div style="position:absolute;inset:0;border-radius:50%;background:' + color + ';opacity:0.12;animation:mapPulse 2s ease-out infinite"></div>' +
-              '<div style="position:absolute;inset:25%;border-radius:50%;background:' + color + ';opacity:0.25;animation:mapPulse 2s ease-out infinite 0.5s"></div>' +
-              '<div style="position:absolute;inset:38%;border-radius:50%;background:' + color + ';border:2px solid ' + color + ';box-shadow:0 0 10px ' + color + '"></div>' +
-              '</div>',
-        iconSize: [size*4, size*4],
-        iconAnchor: [size*2, size*2]
+function addMarker(lat, lng, color, name, score, level) {
+    const s = 10 + Math.floor(score/15);
+    const icon = L.divIcon({
+        className:'',
+        html: '<div style="position:relative;width:'+(s*4)+'px;height:'+(s*4)+'px">'
+            + '<div style="position:absolute;inset:0;border-radius:50%;background:'+color+';opacity:.1;animation:mapPulse 2s ease-out infinite"></div>'
+            + '<div style="position:absolute;inset:20%;border-radius:50%;background:'+color+';opacity:.2;animation:mapPulse 2s ease-out .5s infinite"></div>'
+            + '<div style="position:absolute;inset:38%;border-radius:50%;background:'+color+';border:2px solid '+color+';box-shadow:0 0 10px '+color+'"></div>'
+            + '</div>',
+        iconSize:[s*4,s*4], iconAnchor:[s*2,s*2]
     });
-    const m = L.marker([lat, lng], { icon: pulseIcon }).addTo(map);
-    m.bindPopup(
-        '<div style="font-family:Cairo,sans-serif;direction:rtl;min-width:160px;background:#070d12;border:1px solid ' + color + ';padding:10px;border-radius:3px">' +
-        '<div style="color:' + color + ';font-weight:700;font-size:13px;margin-bottom:6px">📍 ' + name + '</div>' +
-        '<div style="font-family:JetBrains Mono;font-size:10px;color:#3d5166">' + lat.toFixed(3) + '° N, ' + lng.toFixed(3) + '° E</div>' +
-        '<div style="margin-top:5px;background:#0b1520;height:4px;border-radius:2px"><div style="width:' + score + '%;height:100%;background:' + color + ';border-radius:2px"></div></div>' +
-        '</div>'
-    );
+    const m = L.marker([lat,lng],{icon}).addTo(map);
+    m.bindPopup('<b style="color:'+color+'">📍 '+name+'</b><br>'
+        +'<span style="font-family:JetBrains Mono;font-size:10px;color:#3d5166">'+lat.toFixed(3)+'° N, '+lng.toFixed(3)+'° E</span><br>'
+        +'<span style="color:'+color+'">'+level+'</span>');
     markers.push(m);
-    analysisPoints.push({ lat, lng, color, name, score });
+    analysisPoints.push({lat,lng,color});
+    if (analysisPoints.length > 1) {
+        tensionLines.forEach(l => map.removeLayer(l));
+        tensionLines.length = 0;
+        for (let i=0; i<analysisPoints.length-1; i++) {
+            const l = L.polyline([[analysisPoints[i].lat,analysisPoints[i].lng],[analysisPoints[i+1].lat,analysisPoints[i+1].lng]],
+                {color,weight:1,opacity:.35,dashArray:'5,8'}).addTo(map);
+            tensionLines.push(l);
+        }
+    }
 }
 
 function highlightCountry(lat, lng, color) {
-    if (!countriesLayer) return;
-    const point = L.latLng(lat, lng);
-    countriesLayer.eachLayer(layer => {
+    if (!window._countriesLayer) return;
+    window._countriesLayer.eachLayer(layer => {
         try {
-            if (layer.getBounds && layer.getBounds().contains(point)) {
-                layer.setStyle({ color: color, weight: 2, fillColor: color, fillOpacity: 0.06 });
-                setTimeout(() => layer.setStyle({ color: 'rgba(0,242,255,0.15)', weight: 1, fillOpacity: 0 }), 4000);
+            if (layer.getBounds().contains([lat,lng])) {
+                layer.setStyle({color,weight:2,fillColor:color,fillOpacity:.05});
+                setTimeout(() => layer.setStyle({color:'rgba(0,242,255,0.1)',weight:.7,fillOpacity:0}), 4000);
             }
         } catch(e) {}
     });
 }
 
-function drawTensionLines(color) {
-    tensionLines.forEach(l => map.removeLayer(l));
-    tensionLines = [];
-    const pts = analysisPoints.slice(-5);
-    for (let i = 0; i < pts.length - 1; i++) {
-        const line = L.polyline([[pts[i].lat, pts[i].lng], [pts[i+1].lat, pts[i+1].lng]], {
-            color: color, weight: 1, opacity: 0.4, dashArray: '5,8'
-        }).addTo(map);
-        tensionLines.push(line);
-    }
-}
-
-function updateHeatLayer(lat, lng, score) { /* heatmap disabled */ }
-
-function clearMapLayers() {
+function clearMap() {
     markers.forEach(m => map.removeLayer(m));
     tensionLines.forEach(l => map.removeLayer(l));
-    markers.length = 0; tensionLines.length = 0; analysisPoints.length = 0;
-
-    targetHistory.length = 0;
-    document.getElementById('targets-list').innerHTML = '';
-    document.getElementById('stat-targets').innerText = '0';
-    document.getElementById('targets-count').innerText = '0';
+    markers.length=0; tensionLines.length=0; analysisPoints.length=0; targetHistory.length=0;
+    document.getElementById('tgt-list').innerHTML='';
+    document.getElementById('s-targets').innerText='0';
+    document.getElementById('tgt-count').innerText='0';
 }
 
-// بحث جغرافي تلقائي بـ Nominatim (OpenStreetMap)
-let geoSearchTimeout = null;
-async function geoSearch(query) {
-    if (!query || query.length < 3) return;
-    clearTimeout(geoSearchTimeout);
-    geoSearchTimeout = setTimeout(async () => {
+// بحث جغرافي
+let geoTimer=null;
+document.getElementById('geo-input').addEventListener('input', function(){
+    clearTimeout(geoTimer);
+    const q = this.value.trim();
+    if (q.length < 3) return;
+    geoTimer = setTimeout(async () => {
         try {
-            const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=3&accept-language=ar`;
-            const resp = await fetch(url, { headers: { 'User-Agent': 'INTEL-OPS/3.0' } });
-            const results = await resp.json();
-            if (results.length > 0) {
-                const r = results[0];
-                const lat = parseFloat(r.lat), lng = parseFloat(r.lon);
-                map.flyTo([lat, lng], 7, { duration: 1.2 });
-                L.popup({ className: 'tactical-popup' })
-                    .setLatLng([lat, lng])
-                    .setContent(`<div style="font-family:Cairo,sans-serif;direction:rtl;color:#00f2ff;background:#070d12;padding:8px;border:1px solid #00f2ff;font-size:12px"><b>${r.display_name.split(',')[0]}</b><br><span style="font-family:JetBrains Mono;font-size:10px;color:#3d5166">${lat.toFixed(3)}°, ${lng.toFixed(3)}°</span></div>`)
+            const r = await fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q)+'&format=json&limit=1&accept-language=ar',
+                {headers:{'User-Agent':'INTEL-OPS/3.0'}});
+            const d = await r.json();
+            if (d[0]) {
+                map.flyTo([+d[0].lat, +d[0].lon], 7, {duration:1.2});
+                L.popup().setLatLng([+d[0].lat,+d[0].lon])
+                    .setContent('<b style="color:#00f2ff">'+d[0].display_name.split(',')[0]+'</b>')
                     .openOn(map);
-                document.getElementById('geo-search').value = r.display_name.split(',')[0];
             }
-        } catch(e) {}
+        } catch(e){}
     }, 600);
-}
+});
 
-// CSS للنبض
-const style = document.createElement('style');
-style.textContent = \`
-@keyframes mapPulse { 0% { transform:scale(0.5);opacity:0.6; } 100% { transform:scale(2.5);opacity:0; } }
-.tactical-popup .leaflet-popup-content-wrapper { background:transparent;border:none;box-shadow:none;padding:0 }
-.tactical-popup .leaflet-popup-tip-container { display:none }
-.tactical-tooltip { background:#070d12 !important; border:1px solid #00f2ff !important; color:#00f2ff !important; font-family:Cairo,sans-serif; font-size:11px; }
-\`;
-document.head.appendChild(style);
-
-function updateStats(d, threatColor) {
-    const count = markers.length;
-    document.getElementById('stat-targets').innerText = count;
-    document.getElementById('targets-count').innerText = count;
-    document.getElementById('stat-location').innerText = d.location_name || '--';
-    document.getElementById('stat-threat').innerHTML = `<span style="color:${threatColor};font-weight:700">${d.threat_level || '--'}</span>`;
-    document.getElementById('stat-engine').innerHTML = `<span style="color:${d._source === 'groq' ? 'var(--accent)' : 'var(--orange)'}">${d._source?.toUpperCase() || '--'}</span>`;
-    document.getElementById('stat-time').innerText = new Date().toLocaleTimeString('ar-IQ');
-
-    targetHistory.unshift({ name: d.location_name || 'غير محدد', threat: d.threat_level || '--', color: threatColor });
-    if (targetHistory.length > 6) targetHistory.pop();
-    document.getElementById('targets-list').innerHTML = targetHistory.map(t => `
-        <div class="target-item">
-            <div class="target-dot" style="background:${t.color};box-shadow:0 0 5px ${t.color}"></div>
-            <span style="flex:1">${t.name}</span>
-            <span style="font-size:10px;color:${t.color};font-family:JetBrains Mono">${t.threat}</span>
-        </div>`).join('');
-}
-
-function getThreatColor(l) {
-    if (!l) return 'var(--muted)';
-    if (l.includes('حرج')) return 'var(--red)';
-    if (l.includes('مرتفع')) return 'var(--orange)';
-    if (l.includes('متوسط')) return 'var(--yellow)';
-    return 'var(--green)';
-}
-function getThreatClass(l) {
-    if (!l) return '';
-    if (l.includes('حرج')) return 'threat-critical';
-    if (l.includes('مرتفع')) return 'threat-high';
-    if (l.includes('متوسط')) return 'threat-medium';
-    return 'threat-low';
-}
-
-// ===== تيكر بطيء جداً =====
-let tickerRAF = null;
+// ===== TICKER =====
+let raf=null;
 function startTicker(text) {
-    const el = document.getElementById('ticker-text');
-    const wrap = el.parentElement;
-    el.innerText = text;
-    let pos = wrap.offsetWidth;
-    if (tickerRAF) cancelAnimationFrame(tickerRAF);
-    function step() {
-        pos -= 0.4; // سرعة بطيئة جداً
-        if (pos < -el.offsetWidth) pos = wrap.offsetWidth;
-        el.style.transform = `translateX(${pos}px)`;
-        tickerRAF = requestAnimationFrame(step);
-    }
+    const el=document.getElementById('ticker'), wrap=el.parentElement;
+    el.innerText=text;
+    let pos=wrap.offsetWidth;
+    if(raf) cancelAnimationFrame(raf);
+    function step(){ pos-=0.4; if(pos<-el.offsetWidth) pos=wrap.offsetWidth; el.style.transform='translateX('+pos+'px)'; raf=requestAnimationFrame(step); }
     step();
 }
 
-window.onload = loadNews;
+// ===== NEWS =====
+setInterval(loadNews, 5*60*1000);
+async function loadNews() {
+    document.getElementById('news-count').innerText='جارٍ التحديث...';
+    document.getElementById('news-list').innerHTML='<div class="loading"><div class="spinner"></div><span>جارٍ فحص الشبكات...</span></div>';
+    try {
+        const res = await fetch('/api/proxy?type=news');
+        if (!res.ok) throw new Error('HTTP '+res.status);
+        const data = await res.json();
+        if (!data.articles?.length) throw new Error('لا توجد أخبار');
+        window._news = data.articles;
+        document.getElementById('news-count').innerText = data.articles.length+' خبر';
+        document.getElementById('news-list').innerHTML = data.articles.map((a,i) => {
+            const t = new Date(a.publishedAt).toLocaleTimeString('ar-IQ',{hour:'2-digit',minute:'2-digit'});
+            return '<div class="news-item" id="n'+i+'" onclick="analyze('+i+')">'
+                +'<div class="news-title">'+a.title+'</div>'
+                +'<div class="news-meta"><span class="news-src">'+(a.source?.flag||'📰')+' '+(a.source?.name||'مجهول')+'</span><span>'+t+'</span></div>'
+                +'</div>';
+        }).join('');
+        startTicker(data.articles.map(a=>a.title).join('  ◆  '));
+        document.getElementById('s-time').innerText = new Date().toLocaleTimeString('ar-IQ');
+    } catch(e) {
+        document.getElementById('news-list').innerHTML='<div class="err">⚠️ '+e.message+'</div>';
+        document.getElementById('news-count').innerText='خطأ';
+    }
+}
+
+// ===== ANALYZE =====
+async function analyze(idx) {
+    const title = (window._news?.[idx]?.title||'').replace(/["\\%&+#<>]/g,' ').trim();
+    if (!title) return;
+    document.querySelectorAll('.news-item').forEach(el=>el.classList.remove('active'));
+    document.getElementById('n'+idx)?.classList.add('active');
+    const view=document.getElementById('a-view'), st=document.getElementById('a-status');
+    st.innerText='PROCESSING...'; st.style.color='var(--yellow)';
+    view.innerHTML='<div class="loading"><div class="spinner"></div><span>تحليل الوضع الاستراتيجي...</span></div>';
+    try {
+        const res = await fetch('/api/proxy?type=analyze&text='+encodeURIComponent(title));
+        if (!res.ok) throw new Error('HTTP '+res.status);
+        const d = await res.json();
+        const lat=parseFloat(d.lat), lng=parseFloat(d.lng);
+        const ok=!isNaN(lat)&&!isNaN(lng);
+        const tc=color(d.threat_level), cls=tclass(d.threat_level);
+        const score=Math.min(100,Math.max(0,parseInt(d.threat_score)||50));
+        if (ok) {
+            addMarker(lat,lng,tc,d.location_name||'--',score,d.threat_level||'--');
+            highlightCountry(lat,lng,tc);
+            map.flyTo([lat,lng],6,{duration:1.5});
+            const n=markers.length;
+            document.getElementById('s-targets').innerText=n;
+            document.getElementById('tgt-count').innerText=n;
+            document.getElementById('s-loc').innerText=d.location_name||'--';
+            document.getElementById('s-threat').innerHTML='<span style="color:'+tc+';font-weight:700">'+(d.threat_level||'--')+'</span>';
+            document.getElementById('s-engine').innerHTML='<span style="color:'+(d._source==='groq'?'var(--accent)':'var(--orange)')+'">'+((d._source||'AI').toUpperCase())+'</span>';
+            document.getElementById('s-time').innerText=new Date().toLocaleTimeString('ar-IQ');
+            targetHistory.unshift({name:d.location_name||'غير محدد',threat:d.threat_level||'--',color:tc});
+            if(targetHistory.length>6) targetHistory.pop();
+            document.getElementById('tgt-list').innerHTML=targetHistory.map(t=>
+                '<div class="tgt"><div class="tgt-dot" style="background:'+t.color+';box-shadow:0 0 5px '+t.color+'"></div>'
+                +'<span style="flex:1">'+t.name+'</span>'
+                +'<span style="font-size:10px;color:'+t.color+';font-family:JetBrains Mono">'+t.threat+'</span></div>'
+            ).join('');
+        }
+        const sc=d.scenarios?
+            '<div class="sec"><div class="sec-lbl">// السيناريوهات</div><div class="scenarios">'
+            +'<div class="sc-item sc-cur"><div class="sc-lbl">◈ الوضع الراهن</div>'+(d.scenarios.current||'--')+'</div>'
+            +'<div class="sc-item sc-best"><div class="sc-lbl">▲ أفضل سيناريو</div>'+(d.scenarios.best||'--')+'</div>'
+            +'<div class="sc-item sc-worst"><div class="sc-lbl">▼ أسوأ سيناريو</div>'+(d.scenarios.worst||'--')+'</div>'
+            +'</div></div>':'';
+        const par=d.parties?.length?'<div class="sec"><div class="sec-lbl">// الأطراف المعنية</div><div class="tags">'+d.parties.map(p=>'<span class="tag">'+p+'</span>').join('')+'</div></div>':'';
+        const int=d.interests?'<div class="sec"><div class="sec-lbl">// المصالح والدوافع</div><p class="sec-txt">'+d.interests+'</p></div>':'';
+        const frc=d.forecast?'<div class="sec"><div class="sec-lbl">// التوقعات (30 يوماً)</div><p class="sec-txt">'+d.forecast+'</p></div>':'';
+        view.innerHTML='<div class="card">'
+            +'<div class="threat-hdr"><span class="tbadge '+cls+'">'+(d.threat_level||'--')+'</span>'
+            +'<div style="display:flex;align-items:center;gap:8px">'
+            +'<span class="src-tag '+(d._source==='groq'?'sg':'sm')+'">'+(d._source||'AI').toUpperCase()+'</span>'
+            +'<span style="font-family:JetBrains Mono;font-size:10px;color:var(--muted)">'+(d.location_name||'--')+'</span>'
+            +'</div></div>'
+            +'<div class="score-wrap"><div class="score-lbl"><span>// مؤشر الخطر</span><span style="color:'+tc+'">'+score+'/100</span></div>'
+            +'<div class="score-bar"><div class="score-fill" style="width:'+score+'%;background:'+tc+'"></div></div></div>'
+            +'<div class="sec"><div class="sec-lbl">// التقرير الاستراتيجي</div><p class="sec-txt">'+(d.summary||'--')+'</p></div>'
+            +par+int+sc+frc
+            +'<div class="sec"><div class="sec-lbl">// الموقع الجغرافي</div>'
+            +'<div class="loc-box"><span style="font-size:16px">📍</span><div>'
+            +'<div style="font-weight:700;font-size:13px">'+(d.location_name||'غير محدد')+'</div>'
+            +'<div style="font-family:JetBrains Mono;font-size:10px;color:var(--muted)">'+(ok?lat.toFixed(3)+'° N, '+lng.toFixed(3)+'° E':'غير متاح')+'</div>'
+            +'</div></div></div>'
+            +'</div>';
+        st.innerText='COMPLETE'; st.style.color='var(--green)';
+        setTimeout(()=>{st.innerText='STANDBY';st.style.color='var(--muted)'},3000);
+    } catch(e) {
+        view.innerHTML='<div class="err">⚠️ فشل التحليل: '+e.message+'</div>';
+        st.innerText='ERROR'; st.style.color='var(--red)';
+        setTimeout(()=>{st.innerText='STANDBY';st.style.color='var(--muted)'},3000);
+    }
+}
+
+function color(l) {
+    if(!l) return 'var(--muted)';
+    if(l.includes('حرج')) return 'var(--red)';
+    if(l.includes('مرتفع')) return 'var(--orange)';
+    if(l.includes('متوسط')) return 'var(--yellow)';
+    return 'var(--green)';
+}
+function tclass(l) {
+    if(!l) return '';
+    if(l.includes('حرج')) return 'tc';
+    if(l.includes('مرتفع')) return 'th';
+    if(l.includes('متوسط')) return 'tm';
+    return 'tl';
+}
+
+
+
+loadNews();
+
+}); // DOMContentLoaded
 </script>
+
 </body>
 </html>
