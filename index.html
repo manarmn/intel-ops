@@ -205,9 +205,14 @@ async function loadNews() {
         window._newsItems = data.articles;
         list.innerHTML = data.articles.map((art, idx) => {
             const time = new Date(art.publishedAt).toLocaleTimeString('ar-IQ', { hour:'2-digit', minute:'2-digit' });
+            const flag = art.source?.flag || '📰';
+            const srcName = art.source?.name || 'مجهول';
             return `<div class="news-item" id="news-${idx}" onclick="analyzeNews(${idx})">
                 <div class="news-title">${art.title}</div>
-                <div class="news-meta"><span class="news-source">${art.source?.name || 'مجهول'}</span><span>${time}</span></div>
+                <div class="news-meta">
+                    <span class="news-source">${flag} ${srcName}</span>
+                    <span style="font-family:JetBrains Mono;font-size:10px;color:var(--muted)">${time}</span>
+                </div>
             </div>`;
         }).join('');
         // تحديث التيكر بنظام JS بطيء
