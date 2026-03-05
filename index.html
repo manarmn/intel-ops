@@ -1,483 +1,242 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<title>INTEL-OPS // PRO_V3</title>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<style>
-:root {
-    --bg:#020608;--panel:#070d12;--panel2:#0b1520;
-    --accent:#00f2ff;--red:#ff2d2d;--orange:#ff8c00;
-    --green:#00ff88;--yellow:#ffe600;
-    --text:#c8d8e8;--muted:#3d5166;--border:#112030;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:'Cairo',sans-serif;height:100vh;overflow:hidden}
-body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
-background-image:linear-gradient(rgba(0,242,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,242,255,0.03) 1px,transparent 1px);
-background-size:40px 40px}
-.scan{position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:9999}
-.header{height:48px;background:var(--panel);border-bottom:1px solid var(--accent);display:flex;align-items:center;padding:0 16px;justify-content:space-between;position:relative;z-index:100;box-shadow:0 0 20px rgba(0,242,255,0.1)}
-.logo{font-family:'JetBrains Mono';color:var(--accent);font-weight:700;font-size:14px;letter-spacing:2px;display:flex;align-items:center;gap:10px}
-.dot{width:8px;height:8px;background:var(--green);border-radius:50%;animation:blink 1.5s ease-in-out infinite;box-shadow:0 0 8px var(--green)}
-.hdr-r{display:flex;align-items:center;gap:16px;font-family:'JetBrains Mono';font-size:12px}
-.pill{padding:3px 10px;border-radius:2px;font-size:11px;font-weight:700}
-.dash{display:grid;grid-template-columns:320px 1fr 420px;height:calc(100vh - 48px);position:relative;z-index:1}
-.col{border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
-.col-hdr{padding:9px 14px;background:rgba(0,0,0,0.5);border-bottom:1px solid var(--border);font-family:'JetBrains Mono';font-size:11px;color:var(--accent);letter-spacing:1px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-.bdg{background:var(--accent);color:#000;padding:1px 7px;border-radius:2px;font-size:10px;font-weight:700}
-.scroll{overflow-y:auto;flex:1;padding:12px}
-.scroll::-webkit-scrollbar{width:3px}
-.scroll::-webkit-scrollbar-thumb{background:var(--border)}
-#map{height:280px;width:100%;flex-shrink:0;border-bottom:2px solid var(--accent);position:relative;filter:saturate(0.85) contrast(1.15) brightness(0.9) hue-rotate(5deg)}
-.map-wrap{position:relative;flex-shrink:0}
-.map-lbl{position:absolute;top:8px;right:8px;z-index:1000;font-family:'JetBrains Mono';font-size:10px;color:var(--accent);background:rgba(2,6,8,0.9);padding:4px 8px;border:1px solid var(--accent);pointer-events:none}
-.map-search{position:absolute;bottom:8px;left:8px;right:8px;z-index:1000;display:flex;gap:4px}
-.map-search input{flex:1;background:rgba(2,6,8,0.92);border:1px solid var(--muted);color:var(--text);padding:5px 9px;font-family:Cairo,sans-serif;font-size:11px;border-radius:2px;outline:none}
-.map-search input:focus{border-color:var(--accent)}
-.map-search button{background:rgba(255,45,45,0.15);border:1px solid var(--red);color:var(--red);padding:4px 8px;font-size:10px;cursor:pointer;border-radius:2px;font-family:'JetBrains Mono'}
-.stat-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px}
-.stat-row:last-child{border-bottom:none}
-.stat-lbl{color:var(--muted);font-size:11px}
-.stat-val{font-family:'JetBrains Mono';font-size:12px}
-.tgt{display:flex;align-items:center;gap:8px;padding:5px 8px;margin-bottom:3px;background:var(--panel2);border-radius:3px;font-size:11px;border-right:2px solid transparent;transition:.2s}
-.tgt:hover{border-right-color:var(--accent)}
-.tgt-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-.news-item{background:var(--panel2);padding:11px 13px;margin-bottom:7px;border-radius:3px;cursor:pointer;border-right:3px solid transparent;transition:all .2s}
-.news-item:hover{background:#0f1d2a;border-right-color:var(--muted)}
-.news-item.active{background:#0e1e2e;border-right-color:var(--accent);box-shadow:0 0 15px rgba(0,242,255,0.07)}
-.news-title{font-size:13px;font-weight:600;line-height:1.5;margin-bottom:5px}
-.news-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);font-family:'JetBrains Mono'}
-.news-src{color:var(--accent);opacity:.7}
-.card{background:var(--panel2);border:1px solid var(--border);border-radius:4px;padding:16px;animation:fadeIn .3s ease}
-.threat-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border)}
-.tbadge{padding:4px 14px;border-radius:2px;font-weight:700;font-size:12px;font-family:'JetBrains Mono';letter-spacing:1px}
-.tc{background:var(--red);color:#fff;box-shadow:0 0 12px rgba(255,45,45,0.4)}
-.th{background:var(--orange);color:#000;box-shadow:0 0 10px rgba(255,140,0,0.3)}
-.tm{background:var(--yellow);color:#000}
-.tl{background:var(--green);color:#000}
-.score-wrap{margin-bottom:14px}
-.score-lbl{font-family:'JetBrains Mono';font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:5px;display:flex;justify-content:space-between}
-.score-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden}
-.score-fill{height:100%;border-radius:3px;transition:width .8s ease}
-.sec{margin-bottom:13px}
-.sec-lbl{font-family:'JetBrains Mono';font-size:10px;color:var(--accent);letter-spacing:2px;margin-bottom:6px;opacity:.8}
-.sec-txt{font-size:12px;line-height:1.7;color:#a0b4c8}
-.tags{display:flex;flex-wrap:wrap;gap:5px}
-.tag{background:var(--panel);border:1px solid var(--border);padding:3px 10px;border-radius:2px;font-size:11px;color:var(--accent);font-family:'JetBrains Mono'}
-.scenarios{display:flex;flex-direction:column;gap:6px}
-.sc-item{padding:8px 12px;border-radius:3px;font-size:12px;line-height:1.5;border-right:3px solid}
-.sc-cur{background:rgba(0,132,255,0.08);border-color:#0084ff;color:#8ab4d4}
-.sc-best{background:rgba(0,255,136,0.07);border-color:var(--green);color:#7dd4a8}
-.sc-worst{background:rgba(255,45,45,0.07);border-color:var(--red);color:#d4827f}
-.sc-lbl{font-family:'JetBrains Mono';font-size:9px;letter-spacing:1px;margin-bottom:3px;opacity:.7}
-.loc-box{display:flex;align-items:center;gap:10px;background:var(--panel);padding:8px 12px;border-radius:3px;border:1px solid var(--border)}
-.src-tag{font-family:'JetBrains Mono';font-size:9px;padding:2px 7px;border-radius:2px;letter-spacing:1px}
-.sg{background:rgba(0,242,255,0.1);color:var(--accent);border:1px solid rgba(0,242,255,0.2)}
-.sm{background:rgba(255,140,0,0.1);color:var(--orange);border:1px solid rgba(255,140,0,0.2)}
-.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;gap:12px;color:var(--accent);font-family:'JetBrains Mono';font-size:12px}
-.spinner{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
-.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:180px;color:var(--muted);font-size:13px;gap:8px;text-align:center}
-.err{background:rgba(255,45,45,0.08);border:1px solid rgba(255,45,45,0.25);color:var(--red);padding:10px 14px;border-radius:3px;font-size:12px}
-.rbtn{font-family:'JetBrains Mono';font-size:10px;background:transparent;border:1px solid var(--accent);color:var(--accent);padding:3px 10px;cursor:pointer;border-radius:2px;transition:.2s}
-.rbtn:hover{background:rgba(0,242,255,0.1)}
-.ticker-wrap{overflow:hidden;background:rgba(0,242,255,0.04);border-top:1px solid var(--border);padding:0 8px;display:flex;align-items:center;height:26px;flex-shrink:0;font-size:11px;font-family:'JetBrains Mono';color:var(--muted)}
-.ticker-lbl{color:var(--accent);font-size:10px;white-space:nowrap;margin-left:10px}
-#ticker{white-space:nowrap;display:inline-block}
-@keyframes spin{to{transform:rotate(360deg)}}
-@keyframes blink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
-@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-@keyframes mapPulse{0%{transform:scale(.5);opacity:.7}100%{transform:scale(3);opacity:0}}
-.leaflet-popup-content-wrapper{background:#070d12!important;border:1px solid #00f2ff!important;border-radius:3px!important;box-shadow:0 0 15px rgba(0,242,255,0.2)!important}
-.leaflet-popup-content{color:#c8d8e8!important;font-family:Cairo,sans-serif!important;direction:rtl}
-.leaflet-popup-tip{background:#00f2ff!important}
-</style>
+    <meta charset="UTF-8">
+    <title>INTEL-OPS // PRO_V3</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <style>
+        :root {
+            --bg:#020608;--panel:#070d12;--panel2:#0b1520;
+            --accent:#00f2ff;--red:#ff2d2d;--orange:#ff8c00;
+            --green:#00ff88;--yellow:#ffe600;
+            --text:#c8d8e8;--muted:#3d5166;--border:#112030;
+        }
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{background:var(--bg);color:var(--text);font-family:'Cairo',sans-serif;height:100vh;overflow:hidden}
+        body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+        background-image:linear-gradient(rgba(0,242,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,242,255,0.03) 1px,transparent 1px);
+        background-size:40px 40px}
+        .scan{position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:9999}
+        .header{height:48px;background:var(--panel);border-bottom:1px solid var(--accent);display:flex;align-items:center;padding:0 16px;justify-content:space-between;position:relative;z-index:100;box-shadow:0 0 20px rgba(0,242,255,0.1)}
+        .logo{font-family:'JetBrains Mono';color:var(--accent);font-weight:700;font-size:14px;letter-spacing:2px;display:flex;align-items:center;gap:10px}
+        .dot{width:8px;height:8px;background:var(--green);border-radius:50%;animation:blink 1.5s ease-in-out infinite;box-shadow:0 0 8px var(--green)}
+        .dash{display:grid;grid-template-columns:320px 1fr 420px;height:calc(100vh - 48px);position:relative;z-index:1}
+        .col{border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+        .col-hdr{padding:9px 14px;background:rgba(0,0,0,0.5);border-bottom:1px solid var(--border);font-family:'JetBrains Mono';font-size:11px;color:var(--accent);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+        .scroll{overflow-y:auto;flex:1;padding:12px}
+        .scroll::-webkit-scrollbar{width:3px}
+        .scroll::-webkit-scrollbar-thumb{background:var(--border)}
+        #map{height:280px;width:100%;flex-shrink:0;border-bottom:2px solid var(--accent);position:relative;filter:saturate(0.85) contrast(1.1) brightness(0.9)}
+        .map-wrap{position:relative;flex-shrink:0}
+        .map-lbl{position:absolute;top:8px;right:8px;z-index:1000;font-family:'JetBrains Mono';font-size:10px;color:var(--accent);background:rgba(2,6,8,0.9);padding:4px 8px;border:1px solid var(--accent);pointer-events:none}
+        .map-search{position:absolute;bottom:8px;left:8px;right:8px;z-index:1000;display:flex;gap:4px}
+        .map-search input{flex:1;background:rgba(2,6,8,0.92);border:1px solid var(--muted);color:var(--text);padding:5px 9px;font-family:Cairo,sans-serif;font-size:11px;border-radius:2px;outline:none}
+        .map-search button{background:rgba(255,45,45,0.15);border:1px solid var(--red);color:var(--red);padding:4px 8px;font-size:10px;cursor:pointer;border-radius:2px}
+        .stat-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px}
+        .stat-lbl{color:var(--muted);font-size:11px}
+        .news-item{background:var(--panel2);padding:11px 13px;margin-bottom:7px;border-radius:3px;cursor:pointer;border-right:3px solid transparent;transition:all .2s}
+        .news-item.active{background:#0e1e2e;border-right-color:var(--accent);box-shadow:0 0 15px rgba(0,242,255,0.07)}
+        .news-title{font-size:13px;font-weight:600;line-height:1.5}
+        .card{background:var(--panel2);border:1px solid var(--border);border-radius:4px;padding:16px;animation:fadeIn .3s ease}
+        .tbadge{padding:4px 14px;border-radius:2px;font-weight:700;font-size:12px;font-family:'JetBrains Mono'}
+        .tc{background:var(--red);color:#fff} .th{background:var(--orange);color:#000} .tm{background:var(--yellow);color:#000}
+        .score-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:5px}
+        .score-fill{height:100%;transition:width .8s ease}
+        .sec-lbl{font-family:'JetBrains Mono';font-size:10px;color:var(--accent);margin-bottom:6px;opacity:.8}
+        .sec-txt{font-size:12px;line-height:1.7;color:#a0b4c8;margin-bottom:12px}
+        .tgt{display:flex;align-items:center;gap:8px;padding:5px 8px;margin-bottom:3px;background:var(--panel2);border-radius:3px;font-size:11px}
+        .tgt-dot{width:6px;height:6px;border-radius:50%}
+        .loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;color:var(--accent)}
+        .spinner{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes blink{50%{opacity:.4}}
+        @keyframes mapPulse{0%{transform:scale(.5);opacity:.7}100%{transform:scale(3);opacity:0}}
+    </style>
 </head>
 <body>
 <div class="scan"></div>
 <header class="header">
     <div class="logo"><div class="dot"></div>INTEL-OPS // PRO_V3</div>
     <div class="hdr-r">
-        <span id="news-count" style="color:var(--muted);font-size:11px">تحميل...</span>
-        <span class="pill" style="background:rgba(0,255,136,0.12);color:var(--green);border:1px solid rgba(0,255,136,0.25)">● ONLINE</span>
-        <span id="clock" style="color:var(--accent)">00:00:00 Z</span>
+        <span id="news-count" style="color:var(--muted);font-size:11px">0 خبر</span>
+        <span class="pill" style="background:rgba(0,255,136,0.12);color:var(--green)">● ONLINE</span>
+        <span id="clock" style="color:var(--accent);font-family:'JetBrains Mono'">00:00:00 Z</span>
     </div>
 </header>
+
 <div class="dash">
-    <!-- COL 1 -->
     <div class="col">
         <div class="map-wrap">
             <div id="map"></div>
             <div class="map-lbl">GEO // TACTICAL VIEW</div>
             <div class="map-search">
-                <input id="geo-input" type="text" placeholder="🔍 ابحث عن موقع جغرافي...">
+                <input id="geo-input" type="text" placeholder="🔍 ابحث عن موقع...">
                 <button onclick="clearMap()">CLR</button>
             </div>
         </div>
-        <div class="col-hdr">📊 GEOSPATIAL STATS <span class="bdg" id="tgt-count">0</span></div>
-        <div class="scroll" style="padding:12px">
-            <div class="stat-row"><span class="stat-lbl">أهداف نشطة</span><span class="stat-val" id="s-targets" style="color:var(--accent)">0</span></div>
-            <div class="stat-row"><span class="stat-lbl">آخر موقع</span><span class="stat-val" id="s-loc" style="font-size:11px">--</span></div>
-            <div class="stat-row"><span class="stat-lbl">مستوى التهديد</span><span class="stat-val" id="s-threat">--</span></div>
-            <div class="stat-row"><span class="stat-lbl">محرك التحليل</span><span class="stat-val" id="s-engine" style="color:var(--muted)">--</span></div>
-            <div class="stat-row"><span class="stat-lbl">آخر تحديث</span><span class="stat-val" id="s-time" style="color:var(--muted);font-size:10px">--</span></div>
-            <div id="tgt-list" style="margin-top:8px"></div>
+        <div class="col-hdr">📊 GEOSPATIAL STATS <span id="tgt-count" style="background:var(--accent);color:#000;padding:1px 5px;border-radius:2px">0</span></div>
+        <div class="scroll">
+            <div class="stat-row"><span class="stat-lbl">آخر موقع</span><span id="s-loc" class="stat-val">--</span></div>
+            <div class="stat-row"><span class="stat-lbl">مستوى التهديد</span><span id="s-threat" class="stat-val">--</span></div>
+            <div id="tgt-list" style="margin-top:10px"></div>
         </div>
     </div>
-    <!-- COL 2 -->
     <div class="col">
-        <div class="col-hdr">📡 تغذية OSINT المباشرة <button class="rbtn" onclick="loadNews()">↺ تحديث</button></div>
-        <div id="news-list" class="scroll"><div class="loading"><div class="spinner"></div><span>جارٍ فحص الشبكات...</span></div></div>
-        <div class="ticker-wrap"><span class="ticker-lbl">LIVE ▶</span><span id="ticker">جارٍ تحميل...</span></div>
+        <div class="col-hdr">📡 LIVE OSINT FEED <button onclick="loadNews()" style="background:none;border:none;color:var(--accent);cursor:pointer">↺</button></div>
+        <div id="news-list" class="scroll"></div>
     </div>
-    <!-- COL 3 -->
     <div class="col">
-        <div class="col-hdr">🧠 وحدة المعالجة المعرفية <span id="a-status" style="color:var(--muted);font-size:10px">STANDBY</span></div>
-        <div id="a-view" class="scroll"><div class="empty"><div style="font-size:28px;opacity:.3">🎯</div><div>اختر خبراً لبدء التحليل الاستراتيجي</div></div></div>
+        <div class="col-hdr">🧠 ANALYSIS UNIT <span id="a-status" style="color:var(--muted)">STANDBY</span></div>
+        <div id="a-view" class="scroll">
+            <div style="text-align:center;padding-top:100px;opacity:.3">🎯 اختر خبراً لتحريك الخريطة والتحليل</div>
+        </div>
     </div>
 </div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-function initLeaflet() {
-    var script = document.createElement('script');
-    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-    script.onload = function() {
-        initApp();
-    };
-    document.head.appendChild(script);
+let map, markers = [], targetHistory = [];
+
+// === تهيئة التطبيق ===
+function init() {
+    // 1. ساعة النظام
+    setInterval(() => {
+        document.getElementById('clock').innerText = new Date().toUTCString().slice(17,25) + ' Z';
+    }, 1000);
+
+    // 2. تهيئة الخريطة (قمر صناعي عسكري)
+    map = L.map('map', { zoomControl:false, attributionControl:false }).setView([30, 45], 4);
+    
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(map);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { opacity: 0.6 }).addTo(map);
+
+    loadNews();
 }
 
-function initApp() {
-// ===== CLOCK =====
-setInterval(() => {
-    document.getElementById('clock').innerText = new Date().toUTCString().slice(17,25) + ' Z';
-}, 1000);
-
-// ===== MAP - MILITARY TACTICAL =====
-const map = L.map('map', { zoomControl:false, attributionControl:false, minZoom:2, maxZoom:12 });
-map.setView([32, 44], 4);
-
-// طبقة عسكرية داكنة مخصصة
-// ESRI World Imagery - صور فضائية حقيقية مجانية
-L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19,
-    opacity: 1.0
-}).addTo(map);
-
-// طبقة أسماء المدن والدول فوق الصور
-L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19,
-    opacity: 0.7,
-    zIndex: 5
-}).addTo(map);
-
-// شبكة تكتيكية SVG على الخريطة
-const radarGrid = L.svg({padding:0}).addTo(map);
-
-// إضافة grid lines تكتيكية
-function drawTacticalGrid() {
-    const canvas = document.createElement('canvas');
-    const mapDiv = document.getElementById('map');
-    canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:400;opacity:0.18';
-    canvas.width = mapDiv.offsetWidth;
-    canvas.height = mapDiv.offsetHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.strokeStyle = '#00f2ff';
-    ctx.lineWidth = 0.5;
-    const step = 40;
-    for(let x=0; x<canvas.width; x+=step) {
-        ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke();
-    }
-    for(let y=0; y<canvas.height; y+=step) {
-        ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke();
-    }
-    // دوائر رادار في المنتصف
-    const cx=canvas.width/2, cy=canvas.height/2;
-    ctx.strokeStyle = '#00f2ff';
-    ctx.lineWidth = 0.4;
-    [30,60,90,120].forEach(r => {
-        ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
-    });
-    // خطوط رادار قطرية
-    [0,45,90,135].forEach(a => {
-        const rad = a*Math.PI/180;
-        ctx.beginPath();
-        ctx.moveTo(cx,cy);
-        ctx.lineTo(cx+Math.cos(rad)*130, cy+Math.sin(rad)*130);
-        ctx.stroke();
-    });
-    mapDiv.appendChild(canvas);
-}
-setTimeout(drawTacticalGrid, 400);
-
-// مسح radar sweep animation
-function addRadarSweep() {
-    const mapDiv = document.getElementById('map');
-    const sweep = document.createElement('div');
-    sweep.style.cssText = 'position:absolute;top:50%;left:50%;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;pointer-events:none;z-index:401;';
-    sweep.innerHTML = '<svg width="120" height="120" style="animation:radarSweep 4s linear infinite"><defs><radialGradient id="sg"><stop offset="0%" stop-color="#00f2ff" stop-opacity="0.6"/><stop offset="100%" stop-color="#00f2ff" stop-opacity="0"/></radialGradient></defs><path d="M60,60 L60,0 A60,60 0 0,1 113,30 Z" fill="url(#sg)" opacity="0.5"/></svg>';
-    mapDiv.appendChild(sweep);
-}
-setTimeout(addRadarSweep, 400);
-
-// إضافة style للـ radar animation
-const radarStyle = document.createElement('style');
-radarStyle.textContent = '@keyframes radarSweep{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}';
-document.head.appendChild(radarStyle);
-
-// نقاط التوتر الساخنة بأيقونات تكتيكية
-const hotspots = [
-    [31.5,34.8,'#ff2d2d','غزة','CRITICAL'],
-    [33.3,44.4,'#ff8c00','العراق','HIGH'],
-    [33.5,36.3,'#ff8c00','سوريا','HIGH'],
-    [32.0,53.0,'#ffe600','إيران','ELEVATED'],
-    [15.3,44.2,'#ff8c00','اليمن','HIGH'],
-    [33.9,35.5,'#ffe600','لبنان','ELEVATED'],
-    [40.5,49.9,'#ffe600','أذربيجان','ELEVATED'],
-    [24.7,46.7,'#00ff88','السعودية','MODERATE'],
-    [41.0,29.0,'#ffe600','تركيا','ELEVATED'],
-];
-hotspots.forEach(([lat,lng,c,name,lvl]) => {
-    const icon = L.divIcon({
-        className:'',
-        html: '<div style="position:relative;width:24px;height:24px">'
-            + '<div style="position:absolute;inset:0;border:1px solid '+c+';border-radius:50%;opacity:0.6;animation:mapPulse 2.5s ease-out infinite"></div>'
-            + '<div style="position:absolute;inset:6px;background:'+c+';border-radius:50%;opacity:0.9;box-shadow:0 0 6px '+c+'"></div>'
-            + '<div style="position:absolute;top:-1px;left:11px;width:1px;height:6px;background:'+c+'"></div>'
-            + '<div style="position:absolute;bottom:-1px;left:11px;width:1px;height:6px;background:'+c+'"></div>'
-            + '<div style="position:absolute;left:-1px;top:11px;width:6px;height:1px;background:'+c+'"></div>'
-            + '<div style="position:absolute;right:-1px;top:11px;width:6px;height:1px;background:'+c+'"></div>'
-            + '</div>',
-        iconSize:[24,24], iconAnchor:[12,12]
-    });
-    L.marker([lat,lng],{icon})
-     .bindTooltip('<span style="font-family:JetBrains Mono;font-size:10px;color:'+c+'">⬡ '+name+' // '+lvl+'</span>',
-        {className:'mil-tooltip',permanent:false,direction:'top'}).addTo(map);
-});
-
-// CSS للـ tooltip العسكري
-const milStyle = document.createElement('style');
-milStyle.textContent = '.mil-tooltip{background:#020608!important;border:1px solid #00f2ff!important;border-radius:2px!important;box-shadow:0 0 8px rgba(0,242,255,0.3)!important;padding:3px 8px!important}.mil-tooltip::before{display:none!important}';
-document.head.appendChild(milStyle);
-
-// حدود الدول
-fetch('https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson')
-    .then(r => r.ok ? r.json() : null).then(data => {
-        if (!data) return;
-        window._countriesLayer = L.geoJSON(data, {
-            style: { color:'rgba(0,242,255,0.12)', weight:0.8, fillOpacity:0, dashArray:'2,4' }
-        }).addTo(map);
-    }).catch(()=>{});
-
-const markers = [], analysisPoints = [], tensionLines = [], targetHistory = [];
-
-function addMarker(lat, lng, color, name, score, level) {
-    const s = 10 + Math.floor(score/15);
-    const icon = L.divIcon({
-        className:'',
-        html: '<div style="position:relative;width:'+(s*4)+'px;height:'+(s*4)+'px">'
-            // حلقات نابضة
-            + '<div style="position:absolute;inset:0;border-radius:50%;border:1px solid '+color+';opacity:.4;animation:mapPulse 2s ease-out infinite"></div>'
-            + '<div style="position:absolute;inset:15%;border-radius:50%;border:1px solid '+color+';opacity:.3;animation:mapPulse 2s ease-out .6s infinite"></div>'
-            // النقطة المركزية
-            + '<div style="position:absolute;inset:38%;border-radius:50%;background:'+color+';box-shadow:0 0 12px '+color+',0 0 4px #fff"></div>'
-            // crosshair lines
-            + '<div style="position:absolute;top:0;left:50%;width:1px;height:30%;background:'+color+';opacity:.8;transform:translateX(-50%)"></div>'
-            + '<div style="position:absolute;bottom:0;left:50%;width:1px;height:30%;background:'+color+';opacity:.8;transform:translateX(-50%)"></div>'
-            + '<div style="position:absolute;right:0;top:50%;height:1px;width:30%;background:'+color+';opacity:.8;transform:translateY(-50%)"></div>'
-            + '<div style="position:absolute;left:0;top:50%;height:1px;width:30%;background:'+color+';opacity:.8;transform:translateY(-50%)"></div>'
-            + '</div>',
-        iconSize:[s*4,s*4], iconAnchor:[s*2,s*2]
-    });
-    const m = L.marker([lat,lng],{icon}).addTo(map);
-    m.bindPopup('<b style="color:'+color+'">📍 '+name+'</b><br>'
-        +'<span style="font-family:JetBrains Mono;font-size:10px;color:#3d5166">'+lat.toFixed(3)+'° N, '+lng.toFixed(3)+'° E</span><br>'
-        +'<span style="color:'+color+'">'+level+'</span>');
-    markers.push(m);
-    analysisPoints.push({lat,lng,color});
-    if (analysisPoints.length > 1) {
-        tensionLines.forEach(l => map.removeLayer(l));
-        tensionLines.length = 0;
-        for (let i=0; i<analysisPoints.length-1; i++) {
-            const l = L.polyline([[analysisPoints[i].lat,analysisPoints[i].lng],[analysisPoints[i+1].lat,analysisPoints[i+1].lng]],
-                {color,weight:1,opacity:.35,dashArray:'5,8'}).addTo(map);
-            tensionLines.push(l);
-        }
-    }
-}
-
-function highlightCountry(lat, lng, color) {
-    if (!window._countriesLayer) return;
-    window._countriesLayer.eachLayer(layer => {
-        try {
-            if (layer.getBounds().contains([lat,lng])) {
-                layer.setStyle({color,weight:2,fillColor:color,fillOpacity:.05});
-                setTimeout(() => layer.setStyle({color:'rgba(0,242,255,0.1)',weight:.7,fillOpacity:0}), 4000);
-            }
-        } catch(e) {}
-    });
-}
-
-window.clearMap = function() {
-    markers.forEach(m => map.removeLayer(m));
-    tensionLines.forEach(l => map.removeLayer(l));
-    markers.length=0; tensionLines.length=0; analysisPoints.length=0; targetHistory.length=0;
-    document.getElementById('tgt-list').innerHTML='';
-    document.getElementById('s-targets').innerText='0';
-    document.getElementById('tgt-count').innerText='0';
-}
-
-// بحث جغرافي
-let geoTimer=null;
-document.getElementById('geo-input').addEventListener('input', function(){
-    clearTimeout(geoTimer);
-    const q = this.value.trim();
-    if (q.length < 3) return;
-    geoTimer = setTimeout(async () => {
-        try {
-            const r = await fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q)+'&format=json&limit=1&accept-language=ar',
-                {headers:{'User-Agent':'INTEL-OPS/3.0'}});
-            const d = await r.json();
-            if (d[0]) {
-                map.flyTo([+d[0].lat, +d[0].lon], 7, {duration:1.2});
-                L.popup().setLatLng([+d[0].lat,+d[0].lon])
-                    .setContent('<b style="color:#00f2ff">'+d[0].display_name.split(',')[0]+'</b>')
-                    .openOn(map);
-            }
-        } catch(e){}
-    }, 600);
-});
-
-// ===== TICKER =====
-let raf=null;
-function startTicker(text) {
-    const el=document.getElementById('ticker'), wrap=el.parentElement;
-    el.innerText=text;
-    let pos=wrap.offsetWidth;
-    if(raf) cancelAnimationFrame(raf);
-    function step(){ pos-=0.4; if(pos<-el.offsetWidth) pos=wrap.offsetWidth; el.style.transform='translateX('+pos+'px)'; raf=requestAnimationFrame(step); }
-    step();
-}
-
-// ===== NEWS =====
-setInterval(() => window.loadNews && window.loadNews(), 5*60*1000);
-window.loadNews = async function() {
-    document.getElementById('news-count').innerText='جارٍ التحديث...';
-    document.getElementById('news-list').innerHTML='<div class="loading"><div class="spinner"></div><span>جارٍ فحص الشبكات...</span></div>';
+// === جلب الأخبار ===
+async function loadNews() {
+    const list = document.getElementById('news-list');
+    list.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
     try {
         const res = await fetch('/api/proxy?type=news');
-        if (!res.ok) throw new Error('HTTP '+res.status);
         const data = await res.json();
-        if (!data.articles?.length) throw new Error('لا توجد أخبار');
         window._news = data.articles;
-        document.getElementById('news-count').innerText = data.articles.length+' خبر';
-        document.getElementById('news-list').innerHTML = data.articles.map((a,i) => {
-            const t = new Date(a.publishedAt).toLocaleTimeString('ar-IQ',{hour:'2-digit',minute:'2-digit'});
-            return '<div class="news-item" id="n'+i+'" onclick="analyze('+i+')">'
-                +'<div class="news-title">'+a.title+'</div>'
-                +'<div class="news-meta"><span class="news-src">'+(a.source?.flag||'📰')+' '+(a.source?.name||'مجهول')+'</span><span>'+t+'</span></div>'
-                +'</div>';
-        }).join('');
-        startTicker(data.articles.map(a=>a.title).join('  ◆  '));
-        document.getElementById('s-time').innerText = new Date().toLocaleTimeString('ar-IQ');
-    } catch(e) {
-        document.getElementById('news-list').innerHTML='<div class="err">⚠️ '+e.message+'</div>';
-        document.getElementById('news-count').innerText='خطأ';
-    }
+        document.getElementById('news-count').innerText = data.articles.length + ' خبر';
+        list.innerHTML = data.articles.map((a, i) => `
+            <div class="news-item" id="n${i}" onclick="analyze(${i})">
+                <div class="news-title">${a.title}</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:5px">${a.source?.name || 'RSS'} | ${new Date().toLocaleTimeString()}</div>
+            </div>
+        `).join('');
+    } catch(e) { list.innerHTML = '<div class="err">فشل تحميل الأخبار</div>'; }
 }
 
-// ===== ANALYZE =====
-window.analyze = async function(idx) {
-    const title = (window._news?.[idx]?.title||'').replace(/["\\%&+#<>]/g,' ').trim();
-    if (!title) return;
-    document.querySelectorAll('.news-item').forEach(el=>el.classList.remove('active'));
-    document.getElementById('n'+idx)?.classList.add('active');
-    const view=document.getElementById('a-view'), st=document.getElementById('a-status');
-    st.innerText='PROCESSING...'; st.style.color='var(--yellow)';
-    view.innerHTML='<div class="loading"><div class="spinner"></div><span>تحليل الوضع الاستراتيجي...</span></div>';
+// === التحليل وتحريك الخريطة (الإصلاح الجوهري هنا) ===
+async function analyze(idx) {
+    const news = window._news[idx];
+    const view = document.getElementById('a-view');
+    const st = document.getElementById('a-status');
+    
+    document.querySelectorAll('.news-item').forEach(el => el.classList.remove('active'));
+    document.getElementById('n'+idx).classList.add('active');
+
+    st.innerText = 'TARGETING...';
+    view.innerHTML = '<div class="loading"><div class="spinner"></div><span>تحديد إحداثيات الموقع...</span></div>';
+
     try {
-        const res = await fetch('/api/proxy?type=analyze&text='+encodeURIComponent(title));
-        if (!res.ok) throw new Error('HTTP '+res.status);
+        const res = await fetch('/api/proxy?type=analyze&text=' + encodeURIComponent(news.title));
         const d = await res.json();
-        const lat=parseFloat(d.lat), lng=parseFloat(d.lng);
-        const ok=!isNaN(lat)&&!isNaN(lng);
-        const tc=color(d.threat_level), cls=tclass(d.threat_level);
-        const score=Math.min(100,Math.max(0,parseInt(d.threat_score)||50));
-        if (ok) {
-            addMarker(lat,lng,tc,d.location_name||'--',score,d.threat_level||'--');
-            highlightCountry(lat,lng,tc);
-            map.flyTo([lat,lng],6,{duration:1.5});
-            const n=markers.length;
-            document.getElementById('s-targets').innerText=n;
-            document.getElementById('tgt-count').innerText=n;
-            document.getElementById('s-loc').innerText=d.location_name||'--';
-            document.getElementById('s-threat').innerHTML='<span style="color:'+tc+';font-weight:700">'+(d.threat_level||'--')+'</span>';
-            document.getElementById('s-engine').innerHTML='<span style="color:'+(d._source==='groq'?'var(--accent)':'var(--orange)')+'">'+((d._source||'AI').toUpperCase())+'</span>';
-            document.getElementById('s-time').innerText=new Date().toLocaleTimeString('ar-IQ');
-            targetHistory.unshift({name:d.location_name||'غير محدد',threat:d.threat_level||'--',color:tc});
-            if(targetHistory.length>6) targetHistory.pop();
-            document.getElementById('tgt-list').innerHTML=targetHistory.map(t=>
-                '<div class="tgt"><div class="tgt-dot" style="background:'+t.color+';box-shadow:0 0 5px '+t.color+'"></div>'
-                +'<span style="flex:1">'+t.name+'</span>'
-                +'<span style="font-size:10px;color:'+t.color+';font-family:JetBrains Mono">'+t.threat+'</span></div>'
-            ).join('');
+        
+        // تحويل النصوص إلى أرقام بدقة
+        const lat = parseFloat(d.lat);
+        const lng = parseFloat(d.lng);
+
+        if (!isNaN(lat) && !isNaN(lng) && lat !== 0) {
+            // تحريك الخريطة للموقع الجديد فوراً
+            map.flyTo([lat, lng], 8, { animate: true, duration: 1.5 });
+            
+            // إضافة العلامة التكتيكية
+            addTacticalMarker(lat, lng, d.threat_level, d.location_name);
+            
+            // تحديث الإحصائيات في العمود الأول
+            document.getElementById('s-loc').innerText = d.location_name;
+            document.getElementById('s-threat').innerHTML = `<span style="color:${getColor(d.threat_level)}">${d.threat_level}</span>`;
+            
+            updateTargetHistory(d.location_name, d.threat_level);
         }
-        const sc=d.scenarios?
-            '<div class="sec"><div class="sec-lbl">// السيناريوهات</div><div class="scenarios">'
-            +'<div class="sc-item sc-cur"><div class="sc-lbl">◈ الوضع الراهن</div>'+(d.scenarios.current||'--')+'</div>'
-            +'<div class="sc-item sc-best"><div class="sc-lbl">▲ أفضل سيناريو</div>'+(d.scenarios.best||'--')+'</div>'
-            +'<div class="sc-item sc-worst"><div class="sc-lbl">▼ أسوأ سيناريو</div>'+(d.scenarios.worst||'--')+'</div>'
-            +'</div></div>':'';
-        const par=d.parties?.length?'<div class="sec"><div class="sec-lbl">// الأطراف المعنية</div><div class="tags">'+d.parties.map(p=>'<span class="tag">'+p+'</span>').join('')+'</div></div>':'';
-        const int=d.interests?'<div class="sec"><div class="sec-lbl">// المصالح والدوافع</div><p class="sec-txt">'+d.interests+'</p></div>':'';
-        const frc=d.forecast?'<div class="sec"><div class="sec-lbl">// التوقعات (30 يوماً)</div><p class="sec-txt">'+d.forecast+'</p></div>':'';
-        view.innerHTML='<div class="card">'
-            +'<div class="threat-hdr"><span class="tbadge '+cls+'">'+(d.threat_level||'--')+'</span>'
-            +'<div style="display:flex;align-items:center;gap:8px">'
-            +'<span class="src-tag '+(d._source==='groq'?'sg':'sm')+'">'+(d._source||'AI').toUpperCase()+'</span>'
-            +'<span style="font-family:JetBrains Mono;font-size:10px;color:var(--muted)">'+(d.location_name||'--')+'</span>'
-            +'</div></div>'
-            +'<div class="score-wrap"><div class="score-lbl"><span>// مؤشر الخطر</span><span style="color:'+tc+'">'+score+'/100</span></div>'
-            +'<div class="score-bar"><div class="score-fill" style="width:'+score+'%;background:'+tc+'"></div></div></div>'
-            +'<div class="sec"><div class="sec-lbl">// التقرير الاستراتيجي</div><p class="sec-txt">'+(d.summary||'--')+'</p></div>'
-            +par+int+sc+frc
-            +'<div class="sec"><div class="sec-lbl">// الموقع الجغرافي</div>'
-            +'<div class="loc-box"><span style="font-size:16px">📍</span><div>'
-            +'<div style="font-weight:700;font-size:13px">'+(d.location_name||'غير محدد')+'</div>'
-            +'<div style="font-family:JetBrains Mono;font-size:10px;color:var(--muted)">'+(ok?lat.toFixed(3)+'° N, '+lng.toFixed(3)+'° E':'غير متاح')+'</div>'
-            +'</div></div></div>'
-            +'</div>';
-        st.innerText='COMPLETE'; st.style.color='var(--green)';
-        setTimeout(()=>{st.innerText='STANDBY';st.style.color='var(--muted)'},3000);
-    } catch(e) {
-        view.innerHTML='<div class="err">⚠️ فشل التحليل: '+e.message+'</div>';
-        st.innerText='ERROR'; st.style.color='var(--red)';
-        setTimeout(()=>{st.innerText='STANDBY';st.style.color='var(--muted)'},3000);
-    }
+
+        renderAnalysisUI(d);
+        st.innerText = 'LOCKED';
+    } catch(e) { view.innerHTML = '<div class="err">فشل تحليل الموقع</div>'; }
 }
 
-function color(l) {
-    if(!l) return 'var(--muted)';
+function addTacticalMarker(lat, lng, level, name) {
+    const color = getColor(level);
+    const icon = L.divIcon({
+        className: '',
+        html: `<div style="position:relative;width:30px;height:30px">
+                <div style="position:absolute;inset:0;border:1px solid ${color};border-radius:50%;animation:mapPulse 2s infinite"></div>
+                <div style="position:absolute;inset:10px;background:${color};border-radius:50%;box-shadow:0 0 10px ${color}"></div>
+               </div>`,
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
+    });
+
+    const m = L.marker([lat, lng], {icon}).addTo(map).bindPopup(`<b>${name}</b>`).openPopup();
+    markers.push(m);
+    document.getElementById('tgt-count').innerText = markers.length;
+}
+
+function renderAnalysisUI(d) {
+    const color = getColor(d.threat_level);
+    const cls = d.threat_level.includes('حرج') ? 'tc' : (d.threat_level.includes('مرتفع') ? 'th' : 'tm');
+    
+    document.getElementById('a-view').innerHTML = `
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;margin-bottom:15px">
+                <span class="tbadge ${cls}">${d.threat_level}</span>
+                <span style="font-family:monospace;font-size:11px">${d.location_name}</span>
+            </div>
+            <div class="score-bar"><div class="score-fill" style="width:${d.threat_score}%;background:${color}"></div></div>
+            <div style="margin-top:15px">
+                <div class="sec-lbl">// ملخص استخباراتي</div>
+                <p class="sec-txt">${d.summary}</p>
+                <div class="sec-lbl">// السيناريو القادم</div>
+                <div style="background:rgba(255,45,45,0.1);padding:10px;border-right:3px solid ${color};font-size:12px">
+                    ${d.scenarios.worst}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function updateTargetHistory(name, threat) {
+    targetHistory.unshift({name, threat, color: getColor(threat)});
+    if(targetHistory.length > 5) targetHistory.pop();
+    document.getElementById('tgt-list').innerHTML = targetHistory.map(t => `
+        <div class="tgt">
+            <div class="tgt-dot" style="background:${t.color}"></div>
+            <span style="flex:1">${t.name}</span>
+            <span style="color:${t.color};font-size:10px">${t.threat}</span>
+        </div>
+    `).join('');
+}
+
+function getColor(l) {
     if(l.includes('حرج')) return 'var(--red)';
     if(l.includes('مرتفع')) return 'var(--orange)';
-    if(l.includes('متوسط')) return 'var(--yellow)';
-    return 'var(--green)';
-}
-function tclass(l) {
-    if(!l) return '';
-    if(l.includes('حرج')) return 'tc';
-    if(l.includes('مرتفع')) return 'th';
-    if(l.includes('متوسط')) return 'tm';
-    return 'tl';
+    return 'var(--yellow)';
 }
 
-    // بدء التطبيق
-    window.loadNews();
+function clearMap() {
+    markers.forEach(m => map.removeLayer(m));
+    markers = [];
+    document.getElementById('tgt-count').innerText = '0';
+    document.getElementById('tgt-list').innerHTML = '';
 }
 
-document.addEventListener('DOMContentLoaded', initLeaflet);
+document.addEventListener('DOMContentLoaded', init);
 </script>
-
-
 </body>
 </html>
