@@ -32,7 +32,7 @@ export default async function handler(req, res) {
                 return res.status(500).json({ error: "مفتاح Gemini غير موجود في البيئة" });
             }
 
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKeyGemini}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key=${apiKeyGemini}`;
 
             const prompt = `أنت محلل جيوسياسي محترف. حلل الخبر التالي: "${decodedText}".
 يجب أن يكون ردك بصيغة JSON نقية فقط بدون أي نص إضافي أو Markdown أو backticks، يحتوي على هذه الحقول فقط:
