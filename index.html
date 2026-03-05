@@ -30,7 +30,7 @@ background-size:40px 40px}
 .scroll{overflow-y:auto;flex:1;padding:12px}
 .scroll::-webkit-scrollbar{width:3px}
 .scroll::-webkit-scrollbar-thumb{background:var(--border)}
-#map{height:280px;width:100%;flex-shrink:0;border-bottom:1px solid var(--border)}
+#map{height:280px;width:100%;flex-shrink:0;border-bottom:2px solid var(--accent);position:relative}
 .map-wrap{position:relative;flex-shrink:0}
 .map-lbl{position:absolute;top:8px;right:8px;z-index:1000;font-family:'JetBrains Mono';font-size:10px;color:var(--accent);background:rgba(2,6,8,0.9);padding:4px 8px;border:1px solid var(--accent);pointer-events:none}
 .map-search{position:absolute;bottom:8px;left:8px;right:8px;z-index:1000;display:flex;gap:4px}
@@ -153,34 +153,108 @@ setInterval(() => {
     document.getElementById('clock').innerText = new Date().toUTCString().slice(17,25) + ' Z';
 }, 1000);
 
-// ===== MAP =====
-const map = L.map('map', { zoomControl:false, attributionControl:false });
-map.setView([30, 45], 4);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+// ===== MAP - MILITARY TACTICAL =====
+const map = L.map('map', { zoomControl:false, attributionControl:false, minZoom:2, maxZoom:12 });
+map.setView([32, 44], 4);
 
-// إصلاح حجم الخريطة بعد التحميل
-window.addEventListener('load', () => setTimeout(() => map.invalidateSize(), 100));
+// طبقة عسكرية داكنة مخصصة
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', { opacity:0.9 }).addTo(map);
 
-// نقاط التوتر الثابتة
-[
-    [31.5,34.8,'#ff2d2d','غزة'],
-    [33.3,44.4,'#ff8c00','العراق'],
-    [33.5,36.3,'#ff8c00','سوريا'],
-    [32.0,53.0,'#ffe600','إيران'],
-    [15.3,44.2,'#ff8c00','اليمن'],
-    [33.9,35.5,'#ffe600','لبنان'],
-    [40.5,49.9,'#ffe600','أذربيجان'],
-].forEach(([lat,lng,c,name]) => {
-    L.circleMarker([lat,lng],{radius:5,color:c,fillColor:c,fillOpacity:.5,weight:1})
-     .bindTooltip(name,{className:'',permanent:false}).addTo(map);
+// شبكة تكتيكية SVG على الخريطة
+const radarGrid = L.svg({padding:0}).addTo(map);
+
+// إضافة grid lines تكتيكية
+function drawTacticalGrid() {
+    const canvas = document.createElement('canvas');
+    const mapDiv = document.getElementById('map');
+    canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:400;opacity:0.18';
+    canvas.width = mapDiv.offsetWidth;
+    canvas.height = mapDiv.offsetHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.strokeStyle = '#00f2ff';
+    ctx.lineWidth = 0.5;
+    const step = 40;
+    for(let x=0; x<canvas.width; x+=step) {
+        ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke();
+    }
+    for(let y=0; y<canvas.height; y+=step) {
+        ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke();
+    }
+    // دوائر رادار في المنتصف
+    const cx=canvas.width/2, cy=canvas.height/2;
+    ctx.strokeStyle = '#00f2ff';
+    ctx.lineWidth = 0.4;
+    [30,60,90,120].forEach(r => {
+        ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
+    });
+    // خطوط رادار قطرية
+    [0,45,90,135].forEach(a => {
+        const rad = a*Math.PI/180;
+        ctx.beginPath();
+        ctx.moveTo(cx,cy);
+        ctx.lineTo(cx+Math.cos(rad)*130, cy+Math.sin(rad)*130);
+        ctx.stroke();
+    });
+    mapDiv.appendChild(canvas);
+}
+setTimeout(drawTacticalGrid, 400);
+
+// مسح radar sweep animation
+function addRadarSweep() {
+    const mapDiv = document.getElementById('map');
+    const sweep = document.createElement('div');
+    sweep.style.cssText = 'position:absolute;top:50%;left:50%;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;pointer-events:none;z-index:401;';
+    sweep.innerHTML = '<svg width="120" height="120" style="animation:radarSweep 4s linear infinite"><defs><radialGradient id="sg"><stop offset="0%" stop-color="#00f2ff" stop-opacity="0.6"/><stop offset="100%" stop-color="#00f2ff" stop-opacity="0"/></radialGradient></defs><path d="M60,60 L60,0 A60,60 0 0,1 113,30 Z" fill="url(#sg)" opacity="0.5"/></svg>';
+    mapDiv.appendChild(sweep);
+}
+setTimeout(addRadarSweep, 400);
+
+// إضافة style للـ radar animation
+const radarStyle = document.createElement('style');
+radarStyle.textContent = '@keyframes radarSweep{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}';
+document.head.appendChild(radarStyle);
+
+// نقاط التوتر الساخنة بأيقونات تكتيكية
+const hotspots = [
+    [31.5,34.8,'#ff2d2d','غزة','CRITICAL'],
+    [33.3,44.4,'#ff8c00','العراق','HIGH'],
+    [33.5,36.3,'#ff8c00','سوريا','HIGH'],
+    [32.0,53.0,'#ffe600','إيران','ELEVATED'],
+    [15.3,44.2,'#ff8c00','اليمن','HIGH'],
+    [33.9,35.5,'#ffe600','لبنان','ELEVATED'],
+    [40.5,49.9,'#ffe600','أذربيجان','ELEVATED'],
+    [24.7,46.7,'#00ff88','السعودية','MODERATE'],
+    [41.0,29.0,'#ffe600','تركيا','ELEVATED'],
+];
+hotspots.forEach(([lat,lng,c,name,lvl]) => {
+    const icon = L.divIcon({
+        className:'',
+        html: '<div style="position:relative;width:24px;height:24px">'
+            + '<div style="position:absolute;inset:0;border:1px solid '+c+';border-radius:50%;opacity:0.6;animation:mapPulse 2.5s ease-out infinite"></div>'
+            + '<div style="position:absolute;inset:6px;background:'+c+';border-radius:50%;opacity:0.9;box-shadow:0 0 6px '+c+'"></div>'
+            + '<div style="position:absolute;top:-1px;left:11px;width:1px;height:6px;background:'+c+'"></div>'
+            + '<div style="position:absolute;bottom:-1px;left:11px;width:1px;height:6px;background:'+c+'"></div>'
+            + '<div style="position:absolute;left:-1px;top:11px;width:6px;height:1px;background:'+c+'"></div>'
+            + '<div style="position:absolute;right:-1px;top:11px;width:6px;height:1px;background:'+c+'"></div>'
+            + '</div>',
+        iconSize:[24,24], iconAnchor:[12,12]
+    });
+    L.marker([lat,lng],{icon})
+     .bindTooltip('<span style="font-family:JetBrains Mono;font-size:10px;color:'+c+'">⬡ '+name+' // '+lvl+'</span>',
+        {className:'mil-tooltip',permanent:false,direction:'top'}).addTo(map);
 });
+
+// CSS للـ tooltip العسكري
+const milStyle = document.createElement('style');
+milStyle.textContent = '.mil-tooltip{background:#020608!important;border:1px solid #00f2ff!important;border-radius:2px!important;box-shadow:0 0 8px rgba(0,242,255,0.3)!important;padding:3px 8px!important}.mil-tooltip::before{display:none!important}';
+document.head.appendChild(milStyle);
 
 // حدود الدول
 fetch('https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson')
     .then(r => r.ok ? r.json() : null).then(data => {
         if (!data) return;
         window._countriesLayer = L.geoJSON(data, {
-            style: { color:'rgba(0,242,255,0.1)', weight:0.7, fillOpacity:0, dashArray:'3,6' }
+            style: { color:'rgba(0,242,255,0.12)', weight:0.8, fillOpacity:0, dashArray:'2,4' }
         }).addTo(map);
     }).catch(()=>{});
 
