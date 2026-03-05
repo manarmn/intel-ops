@@ -1,22 +1,28 @@
 export default async function handler(req, res) {
     const { type, q = 'الشرق الأوسط', text } = req.query;
+    const apiKeyGNews = process.env.GNEWS_API_KEY;
+    const apiKeyGemini = process.env.GEMINI_API_KEY;
 
     try {
         if (type === 'news') {
-            const apiKey = process.env.GNEWS_API_KEY;
-            const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(q)}&lang=ar&max=15&apikey=${apiKey}`;
+            const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(q)}&lang=ar&max=10&apikey=${apiKeyGNews}`;
             const response = await fetch(url);
             const data = await response.json();
             return res.status(200).json(data);
         }
 
         if (type === 'analyze') {
-            const apiKey = process.env.GEMINI_API_KEY;
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKeyGemini}`;
             
-            const prompt = `أنت محلل استخبارات عسكرية. حلل هذا الخبر: "${text}". 
-            يجب أن يكون ردك بصيغة JSON فقط كالتالي:
-            {"threat_level": "عالي", "intel_summary": "تحليل موجز", "scenarios": ["سيناريو 1", "سيناريو 2"]}`;
+            const prompt = `أنت محلل جيوسياسي محترف. حلل الخبر التالي: "${text}". 
+            يجب أن يكون ردك بصيغة JSON "نقية" فقط (بدون Markdown) تحتوي على:
+            {
+              "threat_level": "حرج/مرتفع/متوسط",
+              "summary": "تحليل استراتيجي عميق",
+              "lat": "إحداثيات العرض للموقع المرتبط بالخبر (رقم فقط)",
+              "lng": "إحداثيات الطول للموقع المرتبط بالخبر (رقم فقط)",
+              "location_name": "اسم الدولة أو المدينة"
+            }`;
 
             const response = await fetch(url, {
                 method: 'POST',
@@ -26,15 +32,11 @@ export default async function handler(req, res) {
 
             const data = await response.json();
             let aiRaw = data.candidates[0].content.parts[0].text;
-            
-            // تحديث: نظام تنظيف البيانات لضمان عدم حدوث الخطأ الظاهر في صورك
-            const jsonMatch = aiRaw.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                return res.status(200).json(JSON.parse(jsonMatch[0]));
-            }
-            throw new Error("Invalid format");
+            // تنظيف صارم لأي زوائد نصية
+            const jsonClean = aiRaw.match(/\{[\s\S]*\}/)[0];
+            return res.status(200).json(JSON.parse(jsonClean));
         }
     } catch (error) {
-        return res.status(500).json({ error: "API_ERROR", details: error.message });
+        return res.status(500).json({ error: "فشل النظام", details: error.message });
     }
 }
