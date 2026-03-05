@@ -351,9 +351,8 @@ body::before {
 </div>
 
 <script>
-// ── CONFIG (يتم تعيينها من Vercel Environment Variables) ──
-const NEWS_KEY = window.NEWS_API_KEY || 'YOUR_NEWS_API_KEY';
-const GEMINI_KEY = window.GEMINI_API_KEY || 'YOUR_GEMINI_KEY';
+// ── CONFIG — يستخدم Vercel Proxy ──
+const PROXY = '/api/proxy';
 
 // ── KEYWORDS للمنطقة ──
 const REGION_KEYWORDS = 'Iran OR Israel OR Iraq OR "Middle East" OR "Gaza" OR "Lebanon" OR "Hezbollah" OR "IRGC" OR "IDF" OR "Pentagon" OR إيران OR إسرائيل OR العراق';
@@ -381,8 +380,7 @@ function updateTicker(items) {
 // ── FETCH NEWS ──
 async function fetchNews() {
   try {
-    // NewsAPI - أخبار المنطقة
-    const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(REGION_KEYWORDS)}&sortBy=publishedAt&pageSize=30&language=ar&apiKey=${NEWS_KEY}`;
+    const url = `${PROXY}?type=news&q=${encodeURIComponent(REGION_KEYWORDS)}`;
     const res = await fetch(url);
     const data = await res.json();
 
@@ -547,17 +545,7 @@ async function analyzeNews(id) {
 اكتب بالعربية، مختصر وحاد كتقرير استخباراتي حقيقي.`;
 
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { maxOutputTokens: 800, temperature: 0.3 }
-        })
-      }
-    );
+    const res = await fetch(`${PROXY}?type=analyze&text=${encodeURIComponent(prompt)}`, { method: 'GET' });
 
     const data = await res.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'لم يتمكن النظام من التحليل';
