@@ -2,7 +2,7 @@
   "version": 2,
   "functions": {
     "pages/api/proxy.js": {
-      "maxDuration": 30,
+      "maxDuration": 60,
       "memory": 1024
     }
   },
@@ -11,9 +11,7 @@
       "source": "/api/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "no-store, max-age=0" },
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET, OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" }
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
       ]
     }
   ]
