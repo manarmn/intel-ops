@@ -2,44 +2,56 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>INTEL-OPS PRO | مجمع الاستخبارات</title>
+    <title>INTEL-OPS PRO V3 | مركز القيادة</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        :root { --bg: #050a0f; --accent: #00f2ff; --text: #e0e6ed; --panel: #0b1219; --red: #ff3e3e; }
-        body { background: var(--bg); color: var(--text); font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        .header { background: var(--panel); padding: 15px; border-bottom: 2px solid var(--accent); display: flex; justify-content: space-between; }
-        .main { display: grid; grid-template-columns: 380px 1fr 380px; flex: 1; overflow: hidden; }
-        .col { border-left: 1px solid #1a2634; overflow-y: auto; padding: 15px; }
-        #map { height: 350px; width: 100%; filter: grayscale(1) invert(0.9) hue-rotate(170deg); }
-        .card { background: #0e171f; padding: 15px; margin-bottom: 10px; border-radius: 4px; cursor: pointer; border-right: 3px solid transparent; }
-        .card:hover, .card.active { background: #1a2a38; border-right-color: var(--accent); }
-        .threat-badge { padding: 4px 10px; border-radius: 3px; font-size: 11px; font-weight: bold; background: var(--red); color: #000; }
-        .loading { color: var(--accent); text-align: center; padding: 20px; font-family: monospace; }
+        :root { --bg: #03070a; --panel: #0a0f14; --accent: #00f2ff; --red: #ff3e3e; --text: #e0e6ed; }
+        body { background: var(--bg); color: var(--text); font-family: 'Cairo', sans-serif; margin: 0; height: 100vh; overflow: hidden; }
+        
+        .dashboard { display: grid; grid-template-columns: 400px 1fr 400px; height: calc(100vh - 50px); }
+        .header { height: 50px; background: var(--panel); border-bottom: 2px solid var(--accent); display: flex; align-items: center; padding: 0 20px; justify-content: space-between; }
+        
+        .col { border-left: 1px solid #1a2634; display: flex; flex-direction: column; overflow: hidden; }
+        .scroll { overflow-y: auto; flex: 1; padding: 15px; }
+
+        #map { height: 400px; width: 100%; filter: grayscale(1) invert(0.9) hue-rotate(170deg); }
+        
+        .news-item { background: #0e141b; padding: 15px; margin-bottom: 10px; border-radius: 4px; cursor: pointer; border-right: 3px solid transparent; transition: 0.3s; }
+        .news-item:hover { background: #161f29; border-right-color: var(--accent); }
+        .news-item.active { background: #1a2533; border-right-color: var(--accent); box-shadow: 0 0 15px rgba(0,242,255,0.1); }
+
+        .analysis-card { background: var(--panel); border: 1px solid #1a2634; padding: 20px; border-radius: 8px; }
+        .threat-tag { display: inline-block; padding: 2px 10px; border-radius: 4px; font-weight: bold; font-size: 12px; margin-bottom: 15px; }
+        
+        .loading-overlay { color: var(--accent); font-family: 'JetBrains Mono'; text-align: center; padding: 20px; }
     </style>
 </head>
 <body>
 
     <header class="header">
-        <div style="color: var(--accent); font-weight: bold;">INTEL-OPS // PRO_V3</div>
-        <div id="clock" style="font-family: monospace;">00:00:00 Z</div>
+        <div style="font-family: 'JetBrains Mono'; color: var(--accent); font-weight: bold;">[ SYSTEM :: INTEL-OPS_PRO_V3 ]</div>
+        <div id="clock" style="font-family: 'JetBrains Mono'; color: var(--accent);">00:00:00 Z</div>
     </header>
 
-    <div class="main">
+    <div class="dashboard">
         <div class="col">
             <div id="map"></div>
-            <h4 style="color: var(--accent)">GEOSPATIAL STATS</h4>
-            <div id="stats">جاري رصد الترددات...</div>
+            <div class="scroll">
+                <h3 style="color:var(--accent)">📊 إحصائيات النشاط</h3>
+                <div id="geo-stats" style="font-size:14px; color:#6b7c93">بانتظار تحليل الأهداف...</div>
+            </div>
         </div>
 
         <div class="col">
-            <h4>📡 تغذية OSINT المباشرة</h4>
-            <div id="news-feed"><div class="loading">SCANNING...</div></div>
+            <div style="padding:10px; background:#000; font-size:12px; color:var(--accent)">📡 تغذية OSINT المباشرة</div>
+            <div id="news-list" class="scroll"></div>
         </div>
 
-        <div class="col" style="background: var(--panel)">
-            <h4 style="color: var(--accent)">🧠 وحدة المعالجة (GEMINI)</h4>
-            <div id="analysis-output">
-                <p style="color: #6b7c93; text-align: center; margin-top: 50px;">اختر هدفاً للتحليل</p>
+        <div class="col">
+            <div style="padding:10px; background:#000; font-size:12px; color:var(--accent)">🧠 وحدة المعالجة المعرفية</div>
+            <div id="analysis-view" class="scroll">
+                <div style="text-align:center; color:#4a5568; margin-top:100px;">يرجى اختيار هدف نشط لبدء التحليل</div>
             </div>
         </div>
     </div>
@@ -48,46 +60,64 @@
     <script>
         let map = L.map('map', {zoomControl: false}).setView([30, 45], 4);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        let currentMarker = null;
 
-        setInterval(() => { document.getElementById('clock').innerText = new Date().toISOString().split('T')[1].split('.')[0] + " Z"; }, 1000);
+        // تحديث الساعة
+        setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB', {timeZone:'UTC'}) + " Z"; }, 1000);
 
-        async function fetchNews() {
+        // جلب الأخبار الحقيقية
+        async function loadNews() {
+            const list = document.getElementById('news-list');
+            list.innerHTML = '<div class="loading-overlay">جارٍ فحص الشبكات...</div>';
             try {
                 const res = await fetch('/api/proxy?type=news');
                 const data = await res.json();
-                document.getElementById('news-feed').innerHTML = data.articles.map(art => `
-                    <div class="card" onclick="analyze('${encodeURIComponent(art.title)}', this)">
-                        <div style="font-weight:bold; font-size:13px">${art.title}</div>
-                        <div style="font-size:11px; color:#6b7c93; margin-top:5px">${art.source.name}</div>
+                list.innerHTML = data.articles.map((art, idx) => `
+                    <div class="news-item" onclick="analyzeNews('${encodeURIComponent(art.title)}', this)">
+                        <div style="font-size:14px; font-weight:bold; margin-bottom:5px">${art.title}</div>
+                        <div style="font-size:11px; color:#5a6779">${art.source.name} | ${new Date(art.publishedAt).toLocaleTimeString()}</div>
                     </div>
                 `).join('');
-                document.getElementById('stats').innerText = `تم رصد ${data.articles.length} أهداف نشطة.`;
-            } catch (e) { console.error("News Error"); }
+            } catch (e) { list.innerHTML = "فشل الاتصال بالمصدر"; }
         }
 
-        async function analyze(title, el) {
-            document.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
-            el.classList.add('active');
-            const out = document.getElementById('analysis-output');
-            out.innerHTML = '<div class="loading">PROCESSING...</div>';
+        // تحليل الخبر وربطه بالخريطة
+        async function analyzeNews(title, element) {
+            document.querySelectorAll('.news-item').forEach(i => i.classList.remove('active'));
+            element.classList.add('active');
+
+            const view = document.getElementById('analysis-view');
+            view.innerHTML = '<div class="loading-overlay">جارٍ تحليل البيانات الجيوسياسية...</div>';
 
             try {
                 const res = await fetch(`/api/proxy?type=analyze&text=${title}`);
                 const data = await res.json();
-                out.innerHTML = `
-                    <div class="threat-badge">تهديد: ${data.threat_level}</div>
-                    <p style="margin-top:15px; font-size:14px">${data.intel_summary}</p>
-                    <div style="margin-top:10px; border-top:1px solid #1a2634; padding-top:10px">
-                        <small style="color:var(--accent)">السيناريوهات:</small>
-                        <ul style="font-size:12px">${data.scenarios.map(s => `<li>${s}</li>`).join('')}</ul>
+
+                // تحديث الخريطة
+                if (currentMarker) map.removeLayer(currentMarker);
+                const pos = [parseFloat(data.lat), parseFloat(data.lng)];
+                map.flyTo(pos, 6);
+                currentMarker = L.circleMarker(pos, {color: 'red', radius: 12, fillOpacity: 0.8}).addTo(map)
+                    .bindPopup(`<b>منطقة خطر: ${data.location_name}</b>`).openPopup();
+
+                // عرض التحليل
+                view.innerHTML = `
+                    <div class="analysis-card">
+                        <span class="threat-tag" style="background:${data.threat_level === 'حرج' ? 'var(--red)' : 'var(--accent)'}; color:#000">
+                            مستوى التهديد: ${data.threat_level}
+                        </span>
+                        <h4 style="color:var(--accent); margin-bottom:10px;">التقرير الاستراتيجي:</h4>
+                        <p style="font-size:14px; line-height:1.6;">${data.summary}</p>
+                        <div style="margin-top:20px; font-size:12px; color:#6b7c93;">الموقع المرصود: ${data.location_name}</div>
                     </div>
                 `;
+                document.getElementById('geo-stats').innerText = `تم تحديد موقع نشط في ${data.location_name}`;
             } catch (e) {
-                out.innerHTML = `<div style="color:var(--red)">⚠️ فشل في المعالجة. حاول مرة أخرى.</div>`;
+                view.innerHTML = '<div style="color:var(--red)">⚠️ خطأ في معالجة البيانات. حاول مع خبر آخر.</div>';
             }
         }
 
-        window.onload = fetchNews;
+        window.onload = loadNews;
     </script>
 </body>
 </html>
