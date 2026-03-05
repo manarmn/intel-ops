@@ -2,122 +2,770 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>INTEL-OPS PRO V3 | مركز القيادة</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <title>INTEL-OPS // PRO_V3</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        :root { --bg: #03070a; --panel: #0a0f14; --accent: #00f2ff; --red: #ff3e3e; --text: #e0e6ed; }
-        body { background: var(--bg); color: var(--text); font-family: 'Cairo', sans-serif; margin: 0; height: 100vh; overflow: hidden; }
-        
-        .dashboard { display: grid; grid-template-columns: 400px 1fr 400px; height: calc(100vh - 50px); }
-        .header { height: 50px; background: var(--panel); border-bottom: 2px solid var(--accent); display: flex; align-items: center; padding: 0 20px; justify-content: space-between; }
-        
-        .col { border-left: 1px solid #1a2634; display: flex; flex-direction: column; overflow: hidden; }
-        .scroll { overflow-y: auto; flex: 1; padding: 15px; }
+        :root {
+            --bg: #020608;
+            --panel: #070d12;
+            --panel2: #0b1520;
+            --accent: #00f2ff;
+            --accent2: #0084ff;
+            --red: #ff2d2d;
+            --orange: #ff8c00;
+            --green: #00ff88;
+            --yellow: #ffe600;
+            --text: #c8d8e8;
+            --muted: #3d5166;
+            --border: #112030;
+            --glow: rgba(0,242,255,0.15);
+        }
 
-        #map { height: 400px; width: 100%; filter: grayscale(1) invert(0.9) hue-rotate(170deg); }
-        
-        .news-item { background: #0e141b; padding: 15px; margin-bottom: 10px; border-radius: 4px; cursor: pointer; border-right: 3px solid transparent; transition: 0.3s; }
-        .news-item:hover { background: #161f29; border-right-color: var(--accent); }
-        .news-item.active { background: #1a2533; border-right-color: var(--accent); box-shadow: 0 0 15px rgba(0,242,255,0.1); }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
-        .analysis-card { background: var(--panel); border: 1px solid #1a2634; padding: 20px; border-radius: 8px; }
-        .threat-tag { display: inline-block; padding: 2px 10px; border-radius: 4px; font-weight: bold; font-size: 12px; margin-bottom: 15px; }
-        
-        .loading-overlay { color: var(--accent); font-family: 'JetBrains Mono'; text-align: center; padding: 20px; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Cairo', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* شبكة خلفية */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(0,242,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,242,255,0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ===== HEADER ===== */
+        .header {
+            height: 48px;
+            background: var(--panel);
+            border-bottom: 1px solid var(--accent);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            justify-content: space-between;
+            position: relative;
+            z-index: 100;
+            box-shadow: 0 0 20px rgba(0,242,255,0.1);
+        }
+
+        .header-logo {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--accent);
+            font-weight: 700;
+            font-size: 14px;
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-logo .dot {
+            width: 8px; height: 8px;
+            background: var(--green);
+            border-radius: 50%;
+            animation: pulse 1.5s ease-in-out infinite;
+            box-shadow: 0 0 8px var(--green);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+        }
+
+        .status-pill {
+            padding: 3px 10px;
+            border-radius: 2px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        #clock { color: var(--accent); }
+
+        /* ===== LAYOUT ===== */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 360px 1fr 380px;
+            height: calc(100vh - 48px);
+            position: relative;
+            z-index: 1;
+        }
+
+        .col {
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .col-header {
+            padding: 10px 14px;
+            background: rgba(0,0,0,0.4);
+            border-bottom: 1px solid var(--border);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--accent);
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .col-header .badge {
+            background: var(--accent);
+            color: #000;
+            padding: 1px 7px;
+            border-radius: 2px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .scroll {
+            overflow-y: auto;
+            flex: 1;
+            padding: 12px;
+        }
+
+        .scroll::-webkit-scrollbar { width: 4px; }
+        .scroll::-webkit-scrollbar-track { background: transparent; }
+        .scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+        .scroll::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+        /* ===== MAP ===== */
+        #map {
+            height: 280px;
+            width: 100%;
+            flex-shrink: 0;
+            filter: saturate(0.3) brightness(0.7) hue-rotate(180deg);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .map-overlay {
+            position: relative;
+        }
+
+        .map-label {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            z-index: 1000;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--accent);
+            background: rgba(2,6,8,0.85);
+            padding: 4px 8px;
+            border: 1px solid var(--accent);
+            pointer-events: none;
+        }
+
+        /* ===== GEO STATS ===== */
+        .geo-stats { padding: 12px; }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+
+        .stat-row:last-child { border-bottom: none; }
+        .stat-label { color: var(--muted); font-size: 12px; }
+        .stat-value { font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+
+        .targets-list { margin-top: 10px; }
+        .target-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            margin-bottom: 4px;
+            background: var(--panel2);
+            border-radius: 3px;
+            font-size: 12px;
+            border-right: 2px solid transparent;
+            transition: 0.2s;
+        }
+        .target-item:hover { border-right-color: var(--accent); }
+        .target-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        /* ===== NEWS LIST ===== */
+        .news-item {
+            background: var(--panel2);
+            padding: 12px 14px;
+            margin-bottom: 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            border-right: 3px solid transparent;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .news-item::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, transparent 60%, rgba(0,242,255,0.03));
+            opacity: 0;
+            transition: 0.3s;
+        }
+
+        .news-item:hover { background: #0f1d2a; border-right-color: var(--muted); }
+        .news-item:hover::before { opacity: 1; }
+
+        .news-item.active {
+            background: #0e1e2e;
+            border-right-color: var(--accent);
+            box-shadow: 0 0 20px rgba(0,242,255,0.08), inset 0 0 20px rgba(0,242,255,0.03);
+        }
+
+        .news-title {
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.5;
+            margin-bottom: 6px;
+            color: var(--text);
+        }
+
+        .news-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: var(--muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .news-source { color: var(--accent); opacity: 0.7; }
+
+        .threat-mini {
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 2px;
+            font-weight: 700;
+        }
+
+        /* ===== ANALYSIS ===== */
+        .analysis-card {
+            background: var(--panel2);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 18px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .threat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .threat-badge {
+            padding: 4px 14px;
+            border-radius: 2px;
+            font-weight: 700;
+            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 1px;
+        }
+
+        .threat-critical { background: var(--red); color: #fff; box-shadow: 0 0 12px rgba(255,45,45,0.4); }
+        .threat-high { background: var(--orange); color: #000; box-shadow: 0 0 12px rgba(255,140,0,0.3); }
+        .threat-medium { background: var(--yellow); color: #000; box-shadow: 0 0 12px rgba(255,230,0,0.2); }
+        .threat-low { background: var(--green); color: #000; }
+
+        .analysis-section {
+            margin-bottom: 16px;
+        }
+
+        .analysis-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--accent);
+            letter-spacing: 2px;
+            margin-bottom: 6px;
+            opacity: 0.8;
+        }
+
+        .analysis-text {
+            font-size: 13px;
+            line-height: 1.8;
+            color: #a0b4c8;
+        }
+
+        .location-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--panel);
+            padding: 10px 14px;
+            border-radius: 3px;
+            border: 1px solid var(--border);
+            margin-top: 4px;
+        }
+
+        .location-icon { font-size: 16px; }
+        .location-name { font-weight: 700; color: var(--text); font-size: 13px; }
+        .location-coords { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+        /* ===== LOADING ===== */
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            gap: 12px;
+            color: var(--accent);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+        }
+
+        .spinner {
+            width: 32px; height: 32px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.8); }
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            color: var(--muted);
+            font-size: 13px;
+            gap: 8px;
+            text-align: center;
+        }
+
+        .empty-state .icon { font-size: 28px; opacity: 0.4; }
+
+        .refresh-btn {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            padding: 3px 10px;
+            cursor: pointer;
+            border-radius: 2px;
+            letter-spacing: 1px;
+            transition: 0.2s;
+        }
+
+        .refresh-btn:hover { background: var(--glow); }
+
+        /* ===== ERROR ===== */
+        .error-msg {
+            background: rgba(255,45,45,0.1);
+            border: 1px solid rgba(255,45,45,0.3);
+            color: var(--red);
+            padding: 12px 16px;
+            border-radius: 3px;
+            font-size: 13px;
+            margin: 10px 0;
+        }
+
+        /* ===== TICKER ===== */
+        .news-ticker-wrap {
+            overflow: hidden;
+            background: rgba(0,242,255,0.05);
+            border-top: 1px solid var(--border);
+            padding: 0 8px;
+            display: flex;
+            align-items: center;
+            height: 28px;
+            flex-shrink: 0;
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--muted);
+        }
+
+        .ticker-label {
+            color: var(--accent);
+            font-size: 10px;
+            white-space: nowrap;
+            margin-left: 10px;
+            letter-spacing: 1px;
+        }
+
+        #ticker-text {
+            white-space: nowrap;
+            animation: ticker 30s linear infinite;
+        }
+
+        @keyframes ticker {
+            from { transform: translateX(100%); }
+            to { transform: translateX(-100%); }
+        }
+
+        /* ===== SCAN LINE EFFECT ===== */
+        .scan-overlay {
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0,0,0,0.05) 2px,
+                rgba(0,0,0,0.05) 4px
+            );
+            pointer-events: none;
+            z-index: 9999;
+        }
     </style>
 </head>
 <body>
 
-    <header class="header">
-        <div style="font-family: 'JetBrains Mono'; color: var(--accent); font-weight: bold;">[ SYSTEM :: INTEL-OPS_PRO_V3 ]</div>
-        <div id="clock" style="font-family: 'JetBrains Mono'; color: var(--accent);">00:00:00 Z</div>
-    </header>
+<div class="scan-overlay"></div>
 
-    <div class="dashboard">
-        <div class="col">
+<header class="header">
+    <div class="header-logo">
+        <div class="dot"></div>
+        INTEL-OPS // PRO_V3
+    </div>
+    <div class="header-right">
+        <span id="news-count" style="color:var(--muted); font-size:11px;">تحميل...</span>
+        <span class="status-pill" style="background:rgba(0,255,136,0.15); color:var(--green); border:1px solid rgba(0,255,136,0.3)">● ONLINE</span>
+        <span id="clock">00:00:00 Z</span>
+    </div>
+</header>
+
+<div class="dashboard">
+
+    <!-- COL 1: خريطة + إحصائيات -->
+    <div class="col">
+        <div class="map-overlay" style="position:relative; flex-shrink:0;">
             <div id="map"></div>
-            <div class="scroll">
-                <h3 style="color:var(--accent)">📊 إحصائيات النشاط</h3>
-                <div id="geo-stats" style="font-size:14px; color:#6b7c93">بانتظار تحليل الأهداف...</div>
+            <div class="map-label">GEO // TACTICAL VIEW</div>
+        </div>
+        <div class="col-header">
+            📊 GEOSPATIAL STATS
+            <span class="badge" id="targets-count">0</span>
+        </div>
+        <div class="scroll geo-stats">
+            <div class="stat-row">
+                <span class="stat-label">أهداف نشطة</span>
+                <span class="stat-value" id="stat-targets" style="color:var(--accent)">0</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">آخر موقع محلل</span>
+                <span class="stat-value" id="stat-location" style="color:var(--text); font-size:12px;">--</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">مستوى التهديد السائد</span>
+                <span class="stat-value" id="stat-threat">--</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">آخر تحديث</span>
+                <span class="stat-value" id="stat-time" style="color:var(--muted); font-size:11px;">--</span>
+            </div>
+            <div class="targets-list" id="targets-list"></div>
+        </div>
+    </div>
+
+    <!-- COL 2: قائمة الأخبار -->
+    <div class="col">
+        <div class="col-header">
+            📡 تغذية OSINT المباشرة
+            <button class="refresh-btn" onclick="loadNews()">↺ تحديث</button>
+        </div>
+        <div id="news-list" class="scroll">
+            <div class="loading">
+                <div class="spinner"></div>
+                <span>جارٍ فحص الشبكات المفتوحة...</span>
             </div>
         </div>
-
-        <div class="col">
-            <div style="padding:10px; background:#000; font-size:12px; color:var(--accent)">📡 تغذية OSINT المباشرة</div>
-            <div id="news-list" class="scroll"></div>
+        <div class="news-ticker-wrap">
+            <span class="ticker-label">LIVE ▶</span>
+            <span id="ticker-text">جارٍ تحميل التغذية...</span>
         </div>
+    </div>
 
-        <div class="col">
-            <div style="padding:10px; background:#000; font-size:12px; color:var(--accent)">🧠 وحدة المعالجة المعرفية</div>
-            <div id="analysis-view" class="scroll">
-                <div style="text-align:center; color:#4a5568; margin-top:100px;">يرجى اختيار هدف نشط لبدء التحليل</div>
+    <!-- COL 3: التحليل -->
+    <div class="col">
+        <div class="col-header">
+            🧠 وحدة المعالجة المعرفية (GEMINI)
+            <span id="analysis-status" style="color:var(--muted); font-size:10px;">STANDBY</span>
+        </div>
+        <div id="analysis-view" class="scroll">
+            <div class="empty-state">
+                <div class="icon">🎯</div>
+                <div>اختر خبراً لبدء التحليل الجيوسياسي</div>
             </div>
         </div>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-        let map = L.map('map', {zoomControl: false}).setView([30, 45], 4);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        let currentMarker = null;
+</div>
 
-        // تحديث الساعة
-        setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB', {timeZone:'UTC'}) + " Z"; }, 1000);
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
 
-        // جلب الأخبار الحقيقية
-        async function loadNews() {
-            const list = document.getElementById('news-list');
-            list.innerHTML = '<div class="loading-overlay">جارٍ فحص الشبكات...</div>';
-            try {
-                const res = await fetch('/api/proxy?type=news');
-                const data = await res.json();
-                list.innerHTML = data.articles.map((art, idx) => `
-                    <div class="news-item" onclick="analyzeNews('${encodeURIComponent(art.title)}', this)">
-                        <div style="font-size:14px; font-weight:bold; margin-bottom:5px">${art.title}</div>
-                        <div style="font-size:11px; color:#5a6779">${art.source.name} | ${new Date(art.publishedAt).toLocaleTimeString()}</div>
-                    </div>
-                `).join('');
-            } catch (e) { list.innerHTML = "فشل الاتصال بالمصدر"; }
+// ===== خريطة =====
+const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([30, 45], 4);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
+
+const markers = [];
+const targetHistory = [];
+
+// ===== ساعة =====
+setInterval(() => {
+    document.getElementById('clock').innerText = new Date().toUTCString().slice(17, 25) + ' Z';
+}, 1000);
+
+// ===== تحديث تلقائي كل 5 دقائق =====
+let autoRefreshTimer = setInterval(loadNews, 5 * 60 * 1000);
+
+// ===== جلب الأخبار =====
+async function loadNews() {
+    const list = document.getElementById('news-list');
+    document.getElementById('news-count').innerText = 'جارٍ التحديث...';
+
+    list.innerHTML = `<div class="loading"><div class="spinner"></div><span>جارٍ فحص الشبكات المفتوحة...</span></div>`;
+
+    try {
+        const res = await fetch('/api/proxy?type=news');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        if (!data.articles || data.articles.length === 0) {
+            list.innerHTML = `<div class="error-msg">⚠️ لا توجد أخبار متاحة في الوقت الحالي.</div>`;
+            return;
         }
 
-        // تحليل الخبر وربطه بالخريطة
-        async function analyzeNews(title, element) {
-            document.querySelectorAll('.news-item').forEach(i => i.classList.remove('active'));
-            element.classList.add('active');
+        document.getElementById('news-count').innerText = `${data.articles.length} خبر`;
 
-            const view = document.getElementById('analysis-view');
-            view.innerHTML = '<div class="loading-overlay">جارٍ تحليل البيانات الجيوسياسية...</div>';
-
-            try {
-                const res = await fetch(`/api/proxy?type=analyze&text=${title}`);
-                const data = await res.json();
-
-                // تحديث الخريطة
-                if (currentMarker) map.removeLayer(currentMarker);
-                const pos = [parseFloat(data.lat), parseFloat(data.lng)];
-                map.flyTo(pos, 6);
-                currentMarker = L.circleMarker(pos, {color: 'red', radius: 12, fillOpacity: 0.8}).addTo(map)
-                    .bindPopup(`<b>منطقة خطر: ${data.location_name}</b>`).openPopup();
-
-                // عرض التحليل
-                view.innerHTML = `
-                    <div class="analysis-card">
-                        <span class="threat-tag" style="background:${data.threat_level === 'حرج' ? 'var(--red)' : 'var(--accent)'}; color:#000">
-                            مستوى التهديد: ${data.threat_level}
-                        </span>
-                        <h4 style="color:var(--accent); margin-bottom:10px;">التقرير الاستراتيجي:</h4>
-                        <p style="font-size:14px; line-height:1.6;">${data.summary}</p>
-                        <div style="margin-top:20px; font-size:12px; color:#6b7c93;">الموقع المرصود: ${data.location_name}</div>
+        list.innerHTML = data.articles.map((art, idx) => {
+            const time = new Date(art.publishedAt).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' });
+            const safeTitle = art.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            return `
+                <div class="news-item" id="news-${idx}" onclick="analyzeNews('${encodeURIComponent(art.title)}', ${idx})">
+                    <div class="news-title">${art.title}</div>
+                    <div class="news-meta">
+                        <span class="news-source">${art.source?.name || 'مجهول'}</span>
+                        <span>${time}</span>
                     </div>
-                `;
-                document.getElementById('geo-stats').innerText = `تم تحديد موقع نشط في ${data.location_name}`;
-            } catch (e) {
-                view.innerHTML = '<div style="color:var(--red)">⚠️ خطأ في معالجة البيانات. حاول مع خبر آخر.</div>';
-            }
+                </div>
+            `;
+        }).join('');
+
+        // تحديث التيكر
+        document.getElementById('ticker-text').innerText = data.articles.map(a => a.title).join('  ◆  ');
+        document.getElementById('stat-time').innerText = new Date().toLocaleTimeString('ar-IQ');
+
+    } catch (e) {
+        list.innerHTML = `<div class="error-msg">⚠️ فشل الاتصال بالمصدر<br><small style="opacity:0.6">${e.message}</small></div>`;
+        document.getElementById('news-count').innerText = 'خطأ';
+    }
+}
+
+// ===== تحليل الخبر =====
+async function analyzeNews(encodedTitle, idx) {
+    // تحديث الـ active
+    document.querySelectorAll('.news-item').forEach(i => i.classList.remove('active'));
+    const el = document.getElementById(`news-${idx}`);
+    if (el) el.classList.add('active');
+
+    const view = document.getElementById('analysis-view');
+    const statusEl = document.getElementById('analysis-status');
+
+    statusEl.innerText = 'PROCESSING...';
+    statusEl.style.color = 'var(--yellow)';
+
+    view.innerHTML = `<div class="loading"><div class="spinner"></div><span>تحليل البيانات الجيوسياسية...</span></div>`;
+
+    try {
+        const res = await fetch(`/api/proxy?type=analyze&text=${encodedTitle}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        // التحقق من الإحداثيات
+        const lat = parseFloat(data.lat);
+        const lng = parseFloat(data.lng);
+        const hasCoords = !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
+
+        // إضافة نقطة للخريطة
+        if (hasCoords) {
+            const threatColor = getThreatColor(data.threat_level);
+
+            const marker = L.circleMarker([lat, lng], {
+                color: threatColor,
+                fillColor: threatColor,
+                radius: 10,
+                fillOpacity: 0.85,
+                weight: 2
+            }).addTo(map);
+
+            // نبضة حول النقطة
+            const pulse = L.circleMarker([lat, lng], {
+                color: threatColor,
+                fillColor: 'transparent',
+                radius: 18,
+                fillOpacity: 0,
+                weight: 1,
+                opacity: 0.5
+            }).addTo(map);
+
+            const title = decodeURIComponent(encodedTitle);
+            marker.bindPopup(`
+                <div style="font-family:Cairo,sans-serif; direction:rtl; font-size:12px; max-width:200px;">
+                    <b style="color:${threatColor}">${data.location_name}</b><br>
+                    <span style="opacity:0.8">${title.substring(0, 80)}...</span>
+                </div>
+            `);
+
+            markers.push({ marker, pulse });
+            map.flyTo([lat, lng], 6, { duration: 1.5 });
+
+            // تحديث الإحصائيات
+            updateStats(data, lat, lng);
         }
 
-        window.onload = loadNews;
-    </script>
+        // عرض التحليل
+        const threatClass = getThreatClass(data.threat_level);
+        view.innerHTML = `
+            <div class="analysis-card">
+                <div class="threat-header">
+                    <span class="threat-badge ${threatClass}">${data.threat_level || 'غير محدد'}</span>
+                    <span style="font-family:JetBrains Mono; font-size:10px; color:var(--muted)">
+                        ${data.location_name || '--'}
+                    </span>
+                </div>
+
+                <div class="analysis-section">
+                    <div class="analysis-label">// التقرير الاستراتيجي</div>
+                    <p class="analysis-text">${data.summary || 'لا يوجد تحليل متاح.'}</p>
+                </div>
+
+                <div class="analysis-section">
+                    <div class="analysis-label">// الموقع الجغرافي</div>
+                    <div class="location-box">
+                        <span class="location-icon">📍</span>
+                        <div>
+                            <div class="location-name">${data.location_name || 'غير محدد'}</div>
+                            <div class="location-coords">${hasCoords ? `${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E` : 'إحداثيات غير متاحة'}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border); display:flex; gap:8px;">
+                    <div style="flex:1; text-align:center; background:var(--panel); padding:8px; border-radius:3px;">
+                        <div style="font-size:10px; color:var(--muted); font-family:JetBrains Mono; margin-bottom:4px;">مستوى التهديد</div>
+                        <div style="font-size:18px; font-weight:900; color:${getThreatColor(data.threat_level)}">${getThreatIcon(data.threat_level)}</div>
+                    </div>
+                    <div style="flex:2; background:var(--panel); padding:8px; border-radius:3px;">
+                        <div style="font-size:10px; color:var(--muted); font-family:JetBrains Mono; margin-bottom:4px;">الإحداثيات</div>
+                        <div style="font-family:JetBrains Mono; font-size:11px; color:var(--accent)">
+                            ${hasCoords ? `${lat.toFixed(3)}, ${lng.toFixed(3)}` : 'N/A'}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        statusEl.innerText = 'COMPLETE';
+        statusEl.style.color = 'var(--green)';
+        setTimeout(() => { statusEl.innerText = 'STANDBY'; statusEl.style.color = 'var(--muted)'; }, 3000);
+
+    } catch (e) {
+        view.innerHTML = `<div class="error-msg">⚠️ فشل التحليل<br><small style="opacity:0.6">${e.message}</small></div>`;
+        statusEl.innerText = 'ERROR';
+        statusEl.style.color = 'var(--red)';
+        setTimeout(() => { statusEl.innerText = 'STANDBY'; statusEl.style.color = 'var(--muted)'; }, 3000);
+    }
+}
+
+// ===== تحديث الإحصائيات =====
+function updateStats(data, lat, lng) {
+    const count = markers.length;
+    document.getElementById('stat-targets').innerText = count;
+    document.getElementById('targets-count').innerText = count;
+    document.getElementById('stat-location').innerText = data.location_name || '--';
+    document.getElementById('stat-time').innerText = new Date().toLocaleTimeString('ar-IQ');
+
+    const threatColor = getThreatColor(data.threat_level);
+    document.getElementById('stat-threat').innerHTML = `<span style="color:${threatColor}; font-weight:700">${data.threat_level || '--'}</span>`;
+
+    // قائمة الأهداف
+    targetHistory.unshift({ name: data.location_name, threat: data.threat_level, color: threatColor });
+    if (targetHistory.length > 8) targetHistory.pop();
+
+    document.getElementById('targets-list').innerHTML = targetHistory.map(t => `
+        <div class="target-item">
+            <div class="target-dot" style="background:${t.color}; box-shadow: 0 0 6px ${t.color}"></div>
+            <span style="flex:1; font-size:12px">${t.name}</span>
+            <span style="font-size:10px; color:${t.color}; font-family:JetBrains Mono">${t.threat}</span>
+        </div>
+    `).join('');
+}
+
+// ===== دوال مساعدة =====
+function getThreatColor(level) {
+    if (!level) return 'var(--muted)';
+    if (level.includes('حرج')) return 'var(--red)';
+    if (level.includes('مرتفع')) return 'var(--orange)';
+    if (level.includes('متوسط')) return 'var(--yellow)';
+    return 'var(--green)';
+}
+
+function getThreatClass(level) {
+    if (!level) return '';
+    if (level.includes('حرج')) return 'threat-critical';
+    if (level.includes('مرتفع')) return 'threat-high';
+    if (level.includes('متوسط')) return 'threat-medium';
+    return 'threat-low';
+}
+
+function getThreatIcon(level) {
+    if (!level) return '⚪';
+    if (level.includes('حرج')) return '🔴';
+    if (level.includes('مرتفع')) return '🟠';
+    if (level.includes('متوسط')) return '🟡';
+    return '🟢';
+}
+
+// ===== تشغيل =====
+window.onload = loadNews;
+
+</script>
 </body>
 </html>
