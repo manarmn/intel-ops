@@ -1,604 +1,311 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>INTEL-OPS | مركز التحليل الاستخباري</title>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-<style>
-:root {
-  --bg: #020b12;
-  --bg2: #041825;
-  --card: #061e2e;
-  --green: #00ff88;
-  --red: #ff2244;
-  --orange: #ff8800;
-  --blue: #00aaff;
-  --yellow: #ffcc00;
-  --text: #e0f0ff;
-  --muted: #7aa8cc;
-  --border: #0a3a5a;
-  --grid: rgba(0,170,255,0.04);
-}
-* { margin:0; padding:0; box-sizing:border-box; }
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'Cairo', sans-serif;
-  min-height: 100vh;
-  background-image: linear-gradient(var(--grid) 1px,transparent 1px), linear-gradient(90deg,var(--grid) 1px,transparent 1px);
-  background-size: 40px 40px;
-}
-body::before {
-  content:''; position:fixed; inset:0;
-  background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);
-  pointer-events:none; z-index:999;
-}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INTEL-OPS PRO | مركز العمليات الاستخباراتي</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050a0f;
+            --panel-bg: #0b1219;
+            --accent: #00f2ff;
+            --text: #e0e6ed;
+            --muted: #6b7c93;
+            --red: #ff3e3e;
+            --orange: #ff9f1c;
+            --green: #2ec4b6;
+            --border: #1a2634;
+        }
 
-/* HEADER */
-.header {
-  background: linear-gradient(135deg,#020b12,#041825,#020b12);
-  border-bottom: 2px solid var(--blue);
-  padding: 10px 20px;
-  display: flex; align-items: center; justify-content: space-between;
-  position: sticky; top:0; z-index:100;
-  box-shadow: 0 0 30px rgba(0,170,255,0.2);
-}
-.logo { display:flex; align-items:center; gap:12px; }
-.logo-hex {
-  width:44px; height:44px;
-  background: var(--blue);
-  clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
-  display:flex; align-items:center; justify-content:center; font-size:18px;
-  animation: hexPulse 2s infinite;
-}
-@keyframes hexPulse { 0%,100%{box-shadow:0 0 10px var(--blue)} 50%{box-shadow:0 0 30px var(--blue),0 0 60px rgba(0,170,255,0.3)} }
-.logo-text h1 { font-family:'Share Tech Mono',monospace; font-size:20px; color:var(--blue); letter-spacing:4px; text-shadow:0 0 20px var(--blue); }
-.logo-text p { font-size:10px; color:var(--muted); letter-spacing:2px; }
-.header-right { display:flex; align-items:center; gap:16px; }
-.status-dot { width:8px; height:8px; border-radius:50%; animation:blink 1.5s infinite; display:inline-block; margin-left:5px; }
-.dot-green { background:var(--green); }
-.dot-orange { background:var(--orange); }
-.dot-red { background:var(--red); }
-@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
-.threat-badge {
-  background:rgba(255,34,68,0.1); border:1px solid var(--red);
-  padding:4px 12px; border-radius:4px;
-  font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--red);
-  animation: threatPulse 2s infinite;
-}
-@keyframes threatPulse { 0%,100%{background:rgba(255,34,68,0.1)} 50%{background:rgba(255,34,68,0.2)} }
-.hdr-stat { font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--muted); }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Cairo', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+        }
 
-/* TICKER */
-.ticker {
-  background:rgba(255,136,0,0.08); border-bottom:1px solid rgba(255,136,0,0.3);
-  padding:5px 20px; display:flex; align-items:center; overflow:hidden;
-}
-.ticker-label { background:var(--orange); color:#000; font-size:11px; font-weight:700; padding:2px 10px; border-radius:2px; white-space:nowrap; margin-left:14px; flex-shrink:0; }
-.ticker-wrap { flex:1; overflow:hidden; }
-.ticker-track { display:flex; gap:60px; animation:tickerScroll 50s linear infinite; white-space:nowrap; }
-.ticker-track span { font-size:12px; color:var(--orange); font-family:'Share Tech Mono',monospace; }
-@keyframes tickerScroll { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+        /* الطبقة الشبكية الخلفية (Grid Layer) */
+        body::after {
+            content: "";
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: radial-gradient(circle, #1a2634 1px, transparent 1px);
+            background-size: 30px 30px;
+            opacity: 0.3;
+            z-index: -1;
+        }
 
-/* LAYOUT */
-.layout {
-  display:grid;
-  grid-template-columns: 260px 1fr 300px;
-  height: calc(100vh - 88px);
-}
+        /* Header */
+        .header {
+            height: 60px;
+            background: var(--panel-bg);
+            border-bottom: 2px solid var(--accent);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 20px;
+            box-shadow: 0 4px 20px rgba(0, 242, 255, 0.1);
+        }
 
-/* PANEL */
-.panel { border:1px solid var(--border); background:var(--card); overflow:hidden; display:flex; flex-direction:column; }
-.panel-head {
-  background:rgba(0,170,255,0.05); border-bottom:1px solid var(--border);
-  padding:9px 14px; display:flex; align-items:center; justify-content:space-between;
-  flex-shrink:0;
-}
-.panel-title { font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--blue); letter-spacing:2px; }
-.panel-badge { font-family:'Share Tech Mono',monospace; font-size:10px; background:rgba(0,170,255,0.1); border:1px solid rgba(0,170,255,0.3); color:var(--blue); padding:2px 7px; border-radius:2px; }
-.panel-body { flex:1; overflow-y:auto; }
-.panel-body::-webkit-scrollbar { width:3px; }
-.panel-body::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+        .logo-area { display: flex; align-items: center; gap: 15px; }
+        .logo-text { font-family: 'JetBrains Mono', monospace; font-weight: bold; font-size: 1.4rem; color: var(--accent); letter-spacing: 2px; }
+        
+        .live-indicator {
+            display: flex; align-items: center; gap: 8px;
+            background: rgba(46, 196, 182, 0.1);
+            padding: 5px 12px; border-radius: 20px;
+            border: 1px solid var(--green); color: var(--green);
+            font-size: 12px; font-weight: bold;
+        }
 
-/* SOURCES */
-.sources-panel { border-right:1px solid var(--border); }
-.src-group { padding:6px 14px; font-size:10px; color:var(--muted); font-family:'Share Tech Mono',monospace; letter-spacing:1px; background:rgba(0,0,0,0.3); border-bottom:1px solid var(--border); }
-.src-item {
-  padding:10px 14px; border-bottom:1px solid rgba(10,58,90,0.4);
-  cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:9px;
-}
-.src-item:hover, .src-item.on { background:rgba(0,170,255,0.07); border-right:2px solid var(--blue); }
-.src-ico { width:28px; height:28px; border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
-.src-name { font-size:12px; font-weight:600; }
-.src-type { font-size:9px; color:var(--muted); font-family:'Share Tech Mono',monospace; }
-.src-count { font-family:'Share Tech Mono',monospace; font-size:10px; background:rgba(0,255,136,0.1); border:1px solid rgba(0,255,136,0.3); color:var(--green); padding:1px 5px; border-radius:2px; }
+        .pulse {
+            width: 8px; height: 8px; background: var(--green);
+            border-radius: 50%; animation: pulse-anim 1.5s infinite;
+        }
 
-/* STATS BAR */
-.stats-bar {
-  display:flex; gap:0; border-bottom:1px solid var(--border);
-  flex-shrink:0;
-}
-.stat-box {
-  flex:1; padding:14px 10px; text-align:center; border-left:1px solid var(--border);
-  position:relative; overflow:hidden;
-}
-.stat-box:first-child { border-left:none; }
-.stat-num { font-family:'Share Tech Mono',monospace; font-size:28px; font-weight:700; line-height:1; }
-.stat-lbl { font-size:10px; color:var(--muted); margin-top:4px; }
-.stat-box.s-red .stat-num { color:var(--red); text-shadow:0 0 15px var(--red); }
-.stat-box.s-orange .stat-num { color:var(--orange); text-shadow:0 0 15px var(--orange); }
-.stat-box.s-blue .stat-num { color:var(--blue); text-shadow:0 0 15px var(--blue); }
-.stat-box.s-green .stat-num { color:var(--green); text-shadow:0 0 15px var(--green); }
+        @keyframes pulse-anim {
+            0% { box-shadow: 0 0 0 0px rgba(46, 196, 182, 0.7); }
+            100% { box-shadow: 0 0 0 10px rgba(46, 196, 182, 0); }
+        }
 
-/* FILTERS */
-.filters { padding:8px 14px; display:flex; gap:6px; flex-wrap:wrap; border-bottom:1px solid var(--border); flex-shrink:0; }
-.chip { padding:3px 10px; border-radius:20px; font-size:10px; cursor:pointer; border:1px solid var(--border); color:var(--muted); transition:all 0.2s; font-family:'Share Tech Mono',monospace; }
-.chip:hover, .chip.on { border-color:var(--blue); color:var(--blue); background:rgba(0,170,255,0.1); }
-.chip.c-red { border-color:var(--red); color:var(--red); background:rgba(255,34,68,0.1); }
+        /* Layout */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 300px 1fr 350px;
+            height: calc(100vh - 60px);
+            gap: 1px; background: var(--border);
+        }
 
-/* NEWS */
-.news-item {
-  padding:14px; border-bottom:1px solid rgba(10,58,90,0.5);
-  cursor:pointer; transition:background 0.2s; position:relative;
-}
-.news-item:hover { background:rgba(0,170,255,0.04); }
-.news-item.p-critical { border-right:3px solid var(--red); }
-.news-item.p-high { border-right:3px solid var(--orange); }
-.news-item.p-medium { border-right:3px solid var(--yellow); }
-.news-item.p-low { border-right:3px solid var(--green); }
-.news-meta { display:flex; align-items:center; gap:6px; margin-bottom:7px; flex-wrap:wrap; }
-.pbadge { font-size:9px; font-family:'Share Tech Mono',monospace; padding:2px 7px; border-radius:2px; font-weight:700; letter-spacing:1px; }
-.pb-critical { background:var(--red); color:#fff; }
-.pb-high { background:var(--orange); color:#000; }
-.pb-medium { background:var(--yellow); color:#000; }
-.pb-low { background:rgba(0,255,136,0.2); color:var(--green); border:1px solid var(--green); }
-.new-tag { font-size:9px; background:var(--green); color:#000; padding:1px 5px; border-radius:2px; font-family:'Share Tech Mono',monospace; font-weight:700; animation:blink 2s infinite; }
-.src-tag { font-size:10px; color:var(--muted); font-family:'Share Tech Mono',monospace; background:rgba(255,255,255,0.05); padding:1px 5px; border-radius:2px; }
-.news-time { font-size:10px; color:var(--muted); font-family:'Share Tech Mono',monospace; margin-right:auto; }
-.news-title { font-size:13px; font-weight:700; line-height:1.5; margin-bottom:7px; }
-.news-desc { font-size:11px; color:var(--muted); line-height:1.6; margin-bottom:8px; }
-.news-tags { display:flex; gap:5px; flex-wrap:wrap; margin-bottom:8px; }
-.ntag { font-size:9px; padding:2px 7px; border-radius:10px; border:1px solid var(--border); color:var(--muted); font-family:'Share Tech Mono',monospace; }
-.ntag.geo { border-color:rgba(0,170,255,0.5); color:var(--blue); }
-.ntag.actor { border-color:rgba(255,136,0,0.5); color:var(--orange); }
-.ntag.event { border-color:rgba(255,204,0,0.5); color:var(--yellow); }
-.analyze-btn {
-  background:rgba(0,170,255,0.1); border:1px solid rgba(0,170,255,0.4);
-  color:var(--blue); padding:5px 14px; border-radius:4px;
-  font-family:'Share Tech Mono',monospace; font-size:10px;
-  cursor:pointer; transition:all 0.2s; letter-spacing:1px;
-}
-.analyze-btn:hover { background:rgba(0,170,255,0.2); box-shadow:0 0 15px rgba(0,170,255,0.3); }
-.loading-news { padding:30px; text-align:center; color:var(--muted); font-size:12px; font-family:'Share Tech Mono',monospace; }
+        .column { background: var(--bg); overflow-y: auto; display: flex; flex-direction: column; }
+        
+        /* News Cards */
+        .news-card {
+            padding: 20px; border-bottom: 1px solid var(--border);
+            transition: 0.3s; cursor: pointer; position: relative;
+        }
+        .news-card:hover { background: rgba(0, 242, 255, 0.03); }
+        .news-card.active { background: rgba(0, 242, 255, 0.07); border-right: 4px solid var(--accent); }
 
-/* INTEL PANEL */
-.intel-panel { border-left:1px solid var(--border); }
-.intel-sec { padding:12px 14px; border-bottom:1px solid var(--border); }
-.intel-sec-title {
-  font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--blue);
-  letter-spacing:2px; margin-bottom:10px; display:flex; align-items:center; gap:8px;
-}
-.intel-sec-title::after { content:''; flex:1; height:1px; background:var(--border); }
-.analysis-box {
-  background:rgba(0,0,0,0.4); border:1px solid var(--border);
-  border-radius:5px; padding:12px; font-size:11px; line-height:1.8;
-  color:var(--muted); min-height:160px;
-}
-.analysis-box.loading { animation:loadingPulse 1.5s infinite; }
-@keyframes loadingPulse { 0%,100%{border-color:var(--border)} 50%{border-color:var(--blue)} }
-.conf-bar { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
-.conf-lbl { font-size:10px; font-family:'Share Tech Mono',monospace; color:var(--muted); width:80px; text-align:right; }
-.bar-track { flex:1; height:3px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden; }
-.bar-fill { height:100%; border-radius:2px; transition:width 1.2s ease; }
-.bf-high { background:var(--red); }
-.bf-med { background:var(--orange); }
-.bf-low { background:var(--green); }
-.conf-val { font-size:10px; font-family:'Share Tech Mono',monospace; color:var(--text); width:28px; }
-.corr-item { font-size:10px; color:var(--muted); padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.04); font-family:'Share Tech Mono',monospace; }
-.osint-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
-.osint-card { background:rgba(0,0,0,0.3); border:1px solid var(--border); border-radius:4px; padding:8px; text-align:center; }
-.osint-ico { font-size:18px; margin-bottom:3px; }
-.osint-name { font-size:9px; color:var(--muted); font-family:'Share Tech Mono',monospace; }
-.osint-status { font-size:10px; font-weight:600; margin-top:3px; }
-.os-active { color:var(--green); }
-.os-mon { color:var(--orange); }
+        .priority-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px; padding: 2px 8px; border-radius: 3px;
+            margin-bottom: 10px; display: inline-block;
+        }
+        .p-critical { background: var(--red); color: white; }
+        .p-high { background: var(--orange); color: black; }
 
-/* FOOTER */
-.footer { background:var(--bg2); border-top:1px solid var(--border); padding:5px 20px; display:flex; justify-content:space-between; align-items:center; }
-.footer span { font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--muted); }
+        .news-title { font-size: 15px; font-weight: bold; margin-bottom: 8px; line-height: 1.4; }
+        .news-meta { font-size: 11px; color: var(--muted); display: flex; justify-content: space-between; }
 
-/* Responsive */
-@media(max-width:900px) {
-  .layout { grid-template-columns: 1fr; grid-template-rows: auto; height:auto; }
-  .sources-panel { display:none; }
-  .intel-panel { border-left:none; border-top:1px solid var(--border); }
-}
-</style>
+        /* Intelligence Panel */
+        .intel-header {
+            padding: 15px; background: var(--panel-bg);
+            border-bottom: 1px solid var(--border);
+            font-weight: bold; color: var(--accent);
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        .analysis-content { padding: 20px; }
+        
+        .stat-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;
+        }
+        .stat-item {
+            background: var(--panel-bg); padding: 15px;
+            border-radius: 8px; border: 1px solid var(--border);
+            text-align: center;
+        }
+        .stat-val { display: block; font-size: 22px; font-weight: bold; color: var(--accent); font-family: 'JetBrains Mono'; }
+        .stat-lbl { font-size: 11px; color: var(--muted); }
+
+        /* Scenario Box */
+        .scenario-card {
+            background: rgba(255,255,255,0.03);
+            border-radius: 8px; padding: 15px; margin-top: 15px;
+            border-right: 3px solid var(--accent);
+        }
+        .scenario-title { font-size: 12px; font-weight: bold; color: var(--accent); margin-bottom: 8px; }
+
+        /* Scrollbar Customization */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+        .loading-overlay {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            background: rgba(5, 10, 15, 0.8);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 10;
+        }
+    </style>
 </head>
 <body>
 
-<div class="header">
-  <div class="logo">
-    <div class="logo-hex">⬡</div>
-    <div class="logo-text">
-      <h1>INTEL-OPS</h1>
-      <p>مركز التحليل الاستخباري — OSINT LIVE</p>
-    </div>
-  </div>
-  <div class="header-right">
-    <span class="hdr-stat"><span class="status-dot dot-green"></span>مباشر</span>
-    <span class="hdr-stat"><span class="status-dot dot-orange"></span>مصادر: <span id="srcCount">8</span></span>
-    <span class="hdr-stat"><span class="status-dot dot-red"></span>أخبار: <span id="totalNews">-</span></span>
-    <div class="threat-badge">⚠ مستوى التهديد: حرج</div>
-  </div>
-</div>
-
-<div class="ticker">
-  <div class="ticker-label">🔴 عاجل</div>
-  <div class="ticker-wrap">
-    <div class="ticker-track" id="tickerTrack">
-      <span>⚡ جاري تحميل آخر الأخبار من المصادر المفتوحة...</span>
-      <span>⚡ محرك التحليل الاستخباري جاهز</span>
-      <span>⚡ مراقبة مستمرة لمصادر متعددة</span>
-      <span>⚡ جاري تحميل آخر الأخبار من المصادر المفتوحة...</span>
-      <span>⚡ محرك التحليل الاستخباري جاهز</span>
-      <span>⚡ مراقبة مستمرة لمصادر متعددة</span>
-    </div>
-  </div>
-</div>
-
-<div class="layout">
-
-  <!-- SOURCES -->
-  <div class="panel sources-panel">
-    <div class="panel-head">
-      <span class="panel-title">مصادر OSINT</span>
-      <span class="panel-badge">8 نشط</span>
-    </div>
-    <div class="panel-body">
-      <div class="src-group">── وكالات أنباء ──</div>
-      <div class="src-item on"><div class="src-ico" style="background:rgba(255,136,0,0.2)">🌐</div><div><div class="src-name">Reuters Arabic</div><div class="src-type">RSS FEED</div></div></div>
-      <div class="src-item"><div class="src-ico" style="background:rgba(0,170,255,0.2)">📡</div><div><div class="src-name">Al Jazeera</div><div class="src-type">RSS FEED</div></div></div>
-      <div class="src-item"><div class="src-ico" style="background:rgba(255,34,68,0.2)">📰</div><div><div class="src-name">BBC Arabic</div><div class="src-type">RSS FEED</div></div></div>
-      <div class="src-item"><div class="src-ico" style="background:rgba(0,255,136,0.2)">🗞️</div><div><div class="src-name">Sky News Arabia</div><div class="src-type">RSS FEED</div></div></div>
-      <div class="src-group">── منصات أخبار ──</div>
-      <div class="src-item"><div class="src-ico" style="background:rgba(150,0,255,0.2)">📊</div><div><div class="src-name">NewsAPI</div><div class="src-type">REST API</div></div><div class="src-count">live</div></div>
-      <div class="src-group">── بيانات مفتوحة ──</div>
-      <div class="src-item"><div class="src-ico" style="background:rgba(0,200,150,0.2)">✈️</div><div><div class="src-name">FlightRadar24</div><div class="src-type">TRACKING</div></div></div>
-      <div class="src-item"><div class="src-ico" style="background:rgba(200,150,0,0.2)">🛰️</div><div><div class="src-name">GDELT Project</div><div class="src-type">EVENTS DB</div></div></div>
-      <div class="src-item"><div class="src-ico" style="background:rgba(0,100,255,0.2)">🏛️</div><div><div class="src-name">UN Reports</div><div class="src-type">OFFICIAL</div></div></div>
-    </div>
-  </div>
-
-  <!-- CENTER -->
-  <div style="display:flex;flex-direction:column;border-right:1px solid var(--border);">
-
-    <!-- Stats -->
-    <div class="stats-bar">
-      <div class="stat-box s-red"><div class="stat-num" id="s1">-</div><div class="stat-lbl">أخبار اليوم</div></div>
-      <div class="stat-box s-orange"><div class="stat-num" id="s2">-</div><div class="stat-lbl">أخبار المنطقة</div></div>
-      <div class="stat-box s-blue"><div class="stat-num" id="s3">-</div><div class="stat-lbl">مصادر نشطة</div></div>
-      <div class="stat-box s-green"><div class="stat-num" id="s4">8</div><div class="stat-lbl">تحديث (د)</div></div>
-    </div>
-
-    <!-- Filters -->
-    <div class="filters">
-      <div class="chip on" onclick="setFilter(this,'all')">الكل</div>
-      <div class="chip c-red" onclick="setFilter(this,'iran')">🇮🇷 إيران</div>
-      <div class="chip" onclick="setFilter(this,'israel')">🇮🇱 إسرائيل</div>
-      <div class="chip" onclick="setFilter(this,'us')">🇺🇸 أمريكا</div>
-      <div class="chip" onclick="setFilter(this,'iraq')">🇮🇶 العراق</div>
-      <div class="chip" onclick="setFilter(this,'military')">عسكري</div>
-      <div class="chip" onclick="setFilter(this,'diplomatic')">دبلوماسي</div>
-    </div>
-
-    <!-- News Feed -->
-    <div class="panel-body" id="newsFeed">
-      <div class="loading-news">
-        <div style="color:var(--blue);font-size:24px;margin-bottom:10px">⟳</div>
-        جاري تحميل الأخبار من المصادر المفتوحة...<br>
-        <span style="font-size:10px;opacity:0.6">يرجى الانتظار لحظة</span>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- INTEL PANEL -->
-  <div class="panel intel-panel">
-    <div class="panel-head">
-      <span class="panel-title">محرك التحليل الاستخباري</span>
-    </div>
-    <div class="panel-body">
-
-      <div class="intel-sec">
-        <div class="intel-sec-title">🤖 التحليل بالذكاء الاصطناعي</div>
-        <div class="analysis-box" id="analysisBox">
-          <span style="color:var(--blue);font-family:'Share Tech Mono',monospace;font-size:10px">// في انتظار تحديد خبر...</span><br><br>
-          <span style="font-size:11px;color:var(--muted)">اضغط "تحليل استخباري" على أي خبر لتشغيل محرك الذكاء الاصطناعي</span>
+    <header class="header">
+        <div class="logo-area">
+            <div class="logo-text">INTEL-OPS <span style="font-weight: 300; opacity: 0.5;">v4.0</span></div>
+            <div class="live-indicator">
+                <div class="pulse"></div> نظام الرصد المباشر
+            </div>
         </div>
-      </div>
-
-      <div class="intel-sec">
-        <div class="intel-sec-title">📊 مؤشرات الثقة</div>
-        <div id="confMetrics"><span style="font-size:11px;color:var(--muted)">اختر خبراً لعرض المؤشرات</span></div>
-      </div>
-
-      <div class="intel-sec">
-        <div class="intel-sec-title">🛰️ مصادر OSINT النشطة</div>
-        <div class="osint-grid">
-          <div class="osint-card"><div class="osint-ico">📰</div><div class="osint-name">وكالات أنباء</div><div class="osint-status os-active">نشط ✓</div></div>
-          <div class="osint-card"><div class="osint-ico">📡</div><div class="osint-name">RSS مباشر</div><div class="osint-status os-active">نشط ✓</div></div>
-          <div class="osint-card"><div class="osint-ico">🛰️</div><div class="osint-name">GDELT</div><div class="osint-status os-mon">مراقبة</div></div>
-          <div class="osint-card"><div class="osint-ico">✈️</div><div class="osint-name">تتبع طيران</div><div class="osint-status os-mon">مراقبة</div></div>
+        <div id="top-stats" style="font-family: 'JetBrains Mono'; font-size: 12px; color: var(--muted);">
+            SCANNING_OSINT_NETWORK... [OK]
         </div>
-      </div>
+        <div id="clock" style="font-family: 'JetBrains Mono'; font-size: 14px; color: var(--accent);"></div>
+    </header>
 
-      <div class="intel-sec">
-        <div class="intel-sec-title">🔗 خيوط الترابط</div>
-        <div id="corrPanel"><span style="font-size:11px;color:var(--muted)">— لا توجد بيانات —</span></div>
-      </div>
+    <div class="main-layout">
+        
+        <div class="column" style="border-left: 1px solid var(--border);">
+            <div class="intel-header">📡 محطات الرصد</div>
+            <div id="sources-list" style="padding: 10px;">
+                <div class="stat-item" style="margin-bottom: 10px;">
+                    <span class="stat-lbl">إجمالي أخبار اليوم</span>
+                    <span class="stat-val" id="total-news-count">0</span>
+                </div>
+                <div style="padding: 10px; font-size: 12px; color: var(--muted);">
+                    تحكم المنطقة:<br>
+                    <select id="region-filter" onchange="fetchNews()" style="width: 100%; background: var(--panel-bg); color: white; border: 1px solid var(--border); padding: 8px; margin-top: 5px;">
+                        <option value="Middle East">الشرق الأوسط (شامل)</option>
+                        <option value="Iran">إيران</option>
+                        <option value="Israel">إسرائيل</option>
+                        <option value="Gaza">غزة</option>
+                        <option value="Lebanon">لبنان</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="column">
+            <div class="intel-header">📰 الموجز الاستخباراتي الموحد</div>
+            <div id="news-feed">
+                <div class="loading-news" style="padding: 40px; text-align: center; color: var(--accent);">
+                    جاري سحب البيانات من الأقمار الصناعية...
+                </div>
+            </div>
+        </div>
+
+        <div class="column">
+            <div class="intel-header">🧠 محرك التحليل السيمانتيكي</div>
+            <div id="analysis-output" class="analysis-content">
+                <div style="text-align: center; margin-top: 100px; color: var(--muted);">
+                    <div style="font-size: 40px; margin-bottom: 20px;">🔍</div>
+                    حدد خبراً من القائمة لتشغيل بروتوكول التحليل الاستخباراتي
+                </div>
+            </div>
+        </div>
 
     </div>
-  </div>
 
-</div>
+    <script>
+        const PROXY = '/api/proxy';
 
-<div class="footer">
-  <span>INTEL-OPS v3.0 | OSINT + AI</span>
-  <span id="clock"></span>
-  <span>⚠️ للأغراض الإعلامية فقط</span>
-</div>
+        // تحديث الساعة بتنسيق عسكري
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('clock').innerText = now.getHours().toString().padStart(2, '0') + ":" + 
+                                                        now.getMinutes().toString().padStart(2, '0') + ":" + 
+                                                        now.getSeconds().toString().padStart(2, '0') + " Z";
+        }, 1000);
 
-<script>
-// ── CONFIG — يستخدم Vercel Proxy ──
-const PROXY = '/api/proxy';
+        async function fetchNews() {
+            const region = document.getElementById('region-filter').value;
+            const feed = document.getElementById('news-feed');
+            
+            try {
+                const res = await fetch(`${PROXY}?type=news&q=${region}`);
+                const data = await res.json();
+                
+                if (data.articles) {
+                    document.getElementById('total-news-count').innerText = data.articles.length;
+                    feed.innerHTML = data.articles.map((art, index) => `
+                        <div class="news-card" onclick="analyzeArticle(${index}, this)">
+                            <span class="priority-tag ${index < 3 ? 'p-critical' : 'p-high'}">
+                                ${index < 3 ? 'URGENT' : 'SECURE'}
+                            </span>
+                            <div class="news-title">${art.title}</div>
+                            <div class="news-meta">
+                                <span>${art.source.name}</span>
+                                <span>${timeAgo(art.publishedAt)}</span>
+                            </div>
+                            <input type="hidden" id="desc-${index}" value="${encodeURIComponent(art.description || '')}">
+                        </div>
+                    `).join('');
+                }
+            } catch (e) {
+                feed.innerHTML = "<div style='color:red; padding:20px;'>خطأ في الاتصال بالخادم</div>";
+            }
+        }
 
-// ── KEYWORDS للمنطقة ──
-const REGION_KEYWORDS = 'Iran OR Israel OR Iraq OR "Middle East" OR "Gaza" OR "Lebanon" OR "Hezbollah" OR "IRGC" OR "IDF" OR "Pentagon" OR إيران OR إسرائيل OR العراق';
+        async function analyzeArticle(id, element) {
+            // تمييز الكرت النشط
+            document.querySelectorAll('.news-card').forEach(c => c.classList.remove('active'));
+            element.classList.add('active');
 
-let allNews = [];
-let currentFilter = 'all';
-let refreshInterval = null;
+            const title = element.querySelector('.news-title').innerText;
+            const desc = decodeURIComponent(document.getElementById(`desc-${id}`).value);
+            const output = document.getElementById('analysis-output');
 
-// ── CLOCK ──
-setInterval(() => {
-  const now = new Date();
-  document.getElementById('clock').textContent = 
-    `بغداد: ${now.toLocaleTimeString('ar-IQ')} | UTC: ${now.toUTCString().split(' ')[4]}`;
-}, 1000);
+            output.innerHTML = `<div class="loading-overlay">جاري معالجة البيانات عبر Gemini 1.5 Flash...</div>`;
 
-// ── TICKER UPDATE ──
-function updateTicker(items) {
-  const t = document.getElementById('tickerTrack');
-  if (!items.length) return;
-  const headlines = items.slice(0, 8).map(i => `⚡ ${i.title}`);
-  const doubled = [...headlines, ...headlines];
-  t.innerHTML = doubled.map(h => `<span>${h}</span>`).join('');
-}
+            try {
+                const res = await fetch(`${PROXY}?type=analyze&text=${encodeURIComponent(title + " " + desc)}`);
+                const intel = await res.json();
 
-// ── FETCH NEWS ──
-async function fetchNews() {
-  try {
-    const url = `${PROXY}?type=news&q=${encodeURIComponent(REGION_KEYWORDS)}`;
-    const res = await fetch(url);
-    const data = await res.json();
+                output.innerHTML = `
+                    <div class="stat-grid">
+                        <div class="stat-item">
+                            <span class="stat-lbl">المصداقية</span>
+                            <span class="stat-val">${intel.credibility}%</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-lbl">التهديد</span>
+                            <span class="stat-val" style="color:${getThreatColor(intel.threat_level)}">${intel.threat_level}</span>
+                        </div>
+                    </div>
 
-    if (data.status === 'ok' && data.articles) {
-      allNews = data.articles.map((a, i) => ({
-        id: i,
-        title: a.title || 'بدون عنوان',
-        description: a.description || '',
-        source: a.source?.name || 'مجهول',
-        url: a.url,
-        publishedAt: new Date(a.publishedAt),
-        priority: detectPriority(a.title + ' ' + a.description),
-        category: detectCategory(a.title + ' ' + a.description),
-        country: detectCountry(a.title + ' ' + a.description),
-        image: a.urlToImage
-      }));
+                    <div class="scenario-card">
+                        <div class="scenario-title">📝 الملخص الاستخباراتي</div>
+                        <div style="font-size: 13px; line-height: 1.6;">${intel.intel_summary}</div>
+                    </div>
 
-      updateStats();
-      updateTicker(allNews);
-      renderNews();
-    } else {
-      showError(data.message || 'خطأ في تحميل الأخبار');
-    }
-  } catch(e) {
-    showError('تعذر الاتصال بالمصدر: ' + e.message);
-  }
-}
+                    <div class="scenario-card" style="border-right-color: var(--green);">
+                        <div class="scenario-title">🔮 السيناريوهات المتوقعة</div>
+                        <ul style="font-size: 12px; list-style: none;">
+                            <li style="margin-bottom:8px">🟢 <b>متفائل:</b> ${intel.scenarios[0] || intel.scenarios.optimistic}</li>
+                            <li style="margin-bottom:8px">🔴 <b>متشائم:</b> ${intel.scenarios[1] || intel.scenarios.pessimistic}</li>
+                            <li>💡 <b>الأرجح:</b> ${intel.scenarios[2] || intel.scenarios.likely}</li>
+                        </ul>
+                    </div>
 
-// ── PRIORITY DETECTION ──
-function detectPriority(text) {
-  const t = text?.toLowerCase() || '';
-  const critical = ['attack','strike','explosion','war','missile','bomb','killed','اعتداء','قصف','هجوم','انفجار','حرب','صاروخ','قتيل','شهيد'];
-  const high = ['military','troops','tension','threat','sanction','عسكري','توتر','تهديد','عقوبات','حرج'];
-  const medium = ['meeting','talks','statement','اجتماع','محادثات','تصريح','بيان'];
-  if (critical.some(w => t.includes(w))) return 'critical';
-  if (high.some(w => t.includes(w))) return 'high';
-  if (medium.some(w => t.includes(w))) return 'medium';
-  return 'low';
-}
+                    <div class="scenario-card" style="border-right-color: var(--orange);">
+                        <div class="scenario-title">🛰️ بروتوكول التحقق (OSINT)</div>
+                        <div style="font-size: 11px; color: var(--muted);">${intel.osint_check}</div>
+                    </div>
+                `;
+            } catch (e) {
+                output.innerHTML = "<div style='color:red;'>فشل محرك التحليل. تأكد من إعدادات API.</div>";
+            }
+        }
 
-// ── CATEGORY DETECTION ──
-function detectCategory(text) {
-  const t = text?.toLowerCase() || '';
-  if (['military','attack','army','idf','irgc','عسكري','هجوم','جيش','قوات'].some(w => t.includes(w))) return 'military';
-  if (['diplomat','talk','meeting','sanction','دبلوماسي','محادثات','مفاوضات','عقوبات'].some(w => t.includes(w))) return 'diplomatic';
-  if (['oil','economy','market','نفط','اقتصاد','أسواق'].some(w => t.includes(w))) return 'economic';
-  return 'general';
-}
+        function getThreatColor(level) {
+            if(level.includes('حرج') || level.includes('مرتفع')) return '#ff3e3e';
+            if(level.includes('متوسط')) return '#ff9f1c';
+            return '#2ec4b6';
+        }
 
-// ── COUNTRY DETECTION ──
-function detectCountry(text) {
-  const t = text?.toLowerCase() || '';
-  if (['iran','iranian','irgc','إيران','إيراني','الحرس_الثوري'].some(w => t.includes(w))) return 'iran';
-  if (['israel','israeli','idf','إسرائيل','إسرائيلي'].some(w => t.includes(w))) return 'israel';
-  if (['iraq','iraqi','baghdad','العراق','عراقي','بغداد'].some(w => t.includes(w))) return 'iraq';
-  if (['us','usa','america','pentagon','أمريكا','البنتاغون','واشنطن'].some(w => t.includes(w))) return 'us';
-  return 'other';
-}
+        function timeAgo(date) {
+            const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+            let interval = Math.floor(seconds / 3600);
+            if (interval >= 1) return `منذ ${interval} ساعة`;
+            interval = Math.floor(seconds / 60);
+            if (interval >= 1) return `منذ ${interval} دقيقة`;
+            return "الآن";
+        }
 
-// ── TIME FORMAT ──
-function timeAgo(date) {
-  const diff = Math.floor((new Date() - date) / 60000);
-  if (diff < 1) return 'الآن';
-  if (diff < 60) return `منذ ${diff} دقيقة`;
-  const h = Math.floor(diff / 60);
-  if (h < 24) return `منذ ${h} ساعة`;
-  return `منذ ${Math.floor(h/24)} يوم`;
-}
-
-// ── RENDER NEWS ──
-function renderNews() {
-  const feed = document.getElementById('newsFeed');
-  let items = allNews;
-
-  if (currentFilter !== 'all') {
-    items = allNews.filter(n => n.category === currentFilter || n.country === currentFilter);
-  }
-
-  document.getElementById('totalNews').textContent = items.length;
-  document.querySelector('.panel-badge') && null;
-
-  if (!items.length) {
-    feed.innerHTML = `<div class="loading-news">لا توجد أخبار لهذا الفلتر حالياً</div>`;
-    return;
-  }
-
-  feed.innerHTML = items.map((item, idx) => {
-    const isNew = (new Date() - item.publishedAt) < 3600000;
-    const pClass = `p-${item.priority}`;
-    const pbClass = `pb-${item.priority}`;
-    const pLabel = {critical:'🔴 حرج', high:'🟠 عالي', medium:'🟡 متوسط', low:'🟢 عادي'}[item.priority];
-    const tags = [
-      item.country !== 'other' ? `<span class="ntag actor">${{iran:'إيران',israel:'إسرائيل',iraq:'العراق',us:'أمريكا'}[item.country]||''}</span>` : '',
-      item.category !== 'general' ? `<span class="ntag event">${{military:'عسكري',diplomatic:'دبلوماسي',economic:'اقتصادي'}[item.category]||''}</span>` : '',
-    ].filter(Boolean).join('');
-
-    return `
-    <div class="news-item ${pClass}" id="ni-${item.id}">
-      <div class="news-meta">
-        <span class="pbadge ${pbClass}">${pLabel}</span>
-        ${isNew ? '<span class="new-tag">NEW</span>' : ''}
-        <span class="src-tag">${item.source}</span>
-        <span class="news-time">${timeAgo(item.publishedAt)}</span>
-      </div>
-      <div class="news-title">${item.title}</div>
-      ${item.description ? `<div class="news-desc">${item.description.substring(0,150)}...</div>` : ''}
-      <div class="news-tags">${tags}</div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <button class="analyze-btn" onclick="analyzeNews(${item.id})">⚡ تحليل استخباري</button>
-        ${item.url ? `<a href="${item.url}" target="_blank" style="font-size:10px;color:var(--muted);text-decoration:none;font-family:'Share Tech Mono',monospace;">🔗 المصدر</a>` : ''}
-      </div>
-    </div>`;
-  }).join('');
-}
-
-// ── STATS UPDATE ──
-function updateStats() {
-  const today = allNews.filter(n => (new Date() - n.publishedAt) < 86400000);
-  const regional = allNews.filter(n => n.country !== 'other');
-  document.getElementById('s1').textContent = today.length;
-  document.getElementById('s2').textContent = regional.length;
-  document.getElementById('s3').textContent = new Set(allNews.map(n => n.source)).size;
-}
-
-// ── FILTER ──
-function setFilter(el, filter) {
-  document.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
-  el.classList.add('on');
-  currentFilter = filter;
-  renderNews();
-}
-
-// ── AI ANALYSIS WITH GEMINI ──
-async function analyzeNews(id) {
-  const item = allNews.find(n => n.id === id);
-  if (!item) return;
-
-  const box = document.getElementById('analysisBox');
-  const conf = document.getElementById('confMetrics');
-  const corr = document.getElementById('corrPanel');
-
-  box.className = 'analysis-box loading';
-  box.innerHTML = `<span style="color:var(--blue);font-family:'Share Tech Mono',monospace;font-size:10px">// جاري التحليل الاستخباري...</span>`;
-  conf.innerHTML = `<span style="font-size:10px;color:var(--orange)">⏳ جاري التقييم...</span>`;
-
-  const prompt = `أنت محلل استخباراتي متخصص في OSINT وتحليل أزمات الشرق الأوسط.
-
-حلّل هذا الخبر بأسلوب استخباراتي مختصر ومهني:
-
-العنوان: ${item.title}
-المصدر: ${item.source}
-التفاصيل: ${item.description || 'غير متوفرة'}
-وقت النشر: ${item.publishedAt.toLocaleString('ar-IQ')}
-
-قدّم تحليلاً يشمل:
-1. **تقييم المصدر** (موثوقية من 1-10)
-2. **الدلالة الميدانية** (ماذا يعني هذا الخبر على أرض الواقع؟)
-3. **السيناريو الأرجح** (بنسبة مئوية)
-4. **مؤشرات المتابعة** (ماذا نراقب بعد ذلك؟)
-5. **الخلاصة** (جملة واحدة)
-
-اكتب بالعربية، مختصر وحاد كتقرير استخباراتي حقيقي.`;
-
-  try {
-    const res = await fetch(`${PROXY}?type=analyze&text=${encodeURIComponent(prompt)}`, { method: 'GET' });
-
-    const data = await res.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'لم يتمكن النظام من التحليل';
-
-    box.className = 'analysis-box';
-    box.innerHTML = `<div style="font-size:11px;line-height:1.9;color:var(--muted)">
-      ${text.replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--green)">$1</strong>').replace(/\n/g, '<br>')}
-    </div>`;
-
-    // Confidence metrics
-    const priority = item.priority;
-    const metrics = [
-      { l: 'موثوقية المصدر', v: priority==='critical'?82:priority==='high'?75:65, t:'high' },
-      { l: 'الأهمية الاستراتيجية', v: priority==='critical'?91:priority==='high'?78:55, t:'high' },
-      { l: 'حداثة الخبر', v: Math.max(20, 100 - Math.floor((new Date()-item.publishedAt)/60000)), t:'med' },
-      { l: 'التأكيد المتقاطع', v: 60, t:'med' }
-    ];
-
-    conf.innerHTML = metrics.map(m => `
-      <div class="conf-bar">
-        <span class="conf-lbl">${m.l}</span>
-        <div class="bar-track"><div class="bar-fill bf-${m.t}" style="width:0%" data-w="${m.v}%"></div></div>
-        <span class="conf-val">${m.v}%</span>
-      </div>`).join('');
-
-    setTimeout(() => {
-      document.querySelectorAll('.bar-fill').forEach(b => b.style.width = b.dataset.w);
-    }, 100);
-
-    // Correlations
-    const related = allNews.filter(n => n.id !== id && n.country === item.country).slice(0,3);
-    corr.innerHTML = related.length
-      ? related.map(r => `<div class="corr-item">↗ ${r.title.substring(0,60)}...</div>`).join('')
-      : '<span style="font-size:11px;color:var(--muted)">لا توجد أخبار مرتبطة</span>';
-
-  } catch(e) {
-    box.className = 'analysis-box';
-    box.innerHTML = `<span style="color:var(--red);font-size:11px">❌ خطأ في الاتصال بمحرك الذكاء الاصطناعي<br><small style="color:var(--muted)">${e.message}</small></span>`;
-  }
-}
-
-// ── ERROR ──
-function showError(msg) {
-  document.getElementById('newsFeed').innerHTML = `
-    <div class="loading-news" style="color:var(--red)">
-      ❌ ${msg}<br>
-      <span style="font-size:10px;color:var(--muted)">تحقق من مفاتيح API في إعدادات Vercel</span>
-    </div>`;
-}
-
-// ── AUTO REFRESH ──
-fetchNews();
-refreshInterval = setInterval(fetchNews, 8 * 60 * 1000); // كل 8 دقائق
-</script>
+        window.onload = fetchNews;
+    </script>
 </body>
 </html>
