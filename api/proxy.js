@@ -7,12 +7,24 @@ export default async function handler(req, res) {
 
         // ===== جلب الأخبار =====
         if (type === 'news') {
-            const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(q)}&lang=ar&max=10&apikey=${apiKeyGNews}`;
-            const response = await fetch(url);
+            // إضافة sortby + timestamp لكسر الـ cache وضمان أحدث الأخبار
+            const ts = Date.now();
+            const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(q)}&lang=ar&max=10&sortby=publishedAt&apikey=${apiKeyGNews}&_=${ts}`;
+            
+            const response = await fetch(url, {
+                headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+            });
+
             if (!response.ok) {
                 return res.status(502).json({ error: "فشل GNews API", status: response.status });
             }
+
             const data = await response.json();
+
+            // منع Vercel من تخزين الأخبار
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+
             return res.status(200).json(data);
         }
 
@@ -33,38 +45,49 @@ export default async function handler(req, res) {
 يجب أن يكون ردك بصيغة JSON نقية فقط بدون أي نص إضافي أو Markdown أو backticks، يحتوي على هذه الحقول فقط:
 {
   "threat_level": "حرج أو مرتفع أو متوسط أو منخفض",
-  "summary": "تحليل استراتيجي مختصر بالعربية",
+  "summary": "تحليل استراتيجي مختصر بالعربية لا يتجاوز 100 كلمة",
   "lat": 33.3,
   "lng": 44.4,
   "location_name": "اسم المدينة أو الدولة"
 }
 ملاحظة: lat و lng يجب أن تكون أرقاماً حقيقية وليس نصاً.`;
 
-            // fallback تلقائي: يجرب النماذج بالترتيب حتى ينجح أحدها
             const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash-lite'];
             let response = null;
             let data = null;
+            let lastError = null;
 
             for (const model of models) {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKeyGemini}`;
-                response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: prompt }] }],
-                        generationConfig: { temperature: 0.3, maxOutputTokens: 1024 }
-                    })
-                });
-                data = await response.json();
-                if (response.ok && data.candidates && data.candidates.length > 0) break;
+                try {
+                    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKeyGemini}`;
+                    response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: prompt }] }],
+                            generationConfig: { temperature: 0.3, maxOutputTokens: 1024 }
+                        })
+                    });
+                    data = await response.json();
+                    // نجح النموذج وأرجع نتائج
+                    if (response.ok && data.candidates && data.candidates.length > 0) break;
+                    lastError = data;
+                } catch (e) {
+                    lastError = e.message;
+                    continue;
+                }
             }
 
-            if (!response || !response.ok || !data.candidates || data.candidates.length === 0) {
-                return res.status(502).json({ error: "فشل Gemini API", status: response?.status, details: JSON.stringify(data) });
+            if (!response || !response.ok || !data?.candidates?.length) {
+                return res.status(502).json({ 
+                    error: "فشل Gemini API - جميع النماذج استنفدت حصتها",
+                    details: JSON.stringify(lastError)
+                });
             }
 
             let aiRaw = data.candidates[0]?.content?.parts?.[0]?.text || '';
 
+            // تنظيف شامل
             aiRaw = aiRaw
                 .replace(/```json/gi, '')
                 .replace(/```/g, '')
