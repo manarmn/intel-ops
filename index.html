@@ -158,21 +158,11 @@ const map = L.map('map', { zoomControl:false, attributionControl:false, minZoom:
 map.setView([32, 44], 4);
 
 // طبقة عسكرية داكنة مخصصة
-// طبقات متعددة - نجرب الأفضل
-const tiles = [
-    'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',
-    'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png'
-];
-let tileLayer = L.tileLayer(tiles[0], { maxZoom:20, opacity:0.95 });
-tileLayer.on('tileerror', () => {
-    map.removeLayer(tileLayer);
-    tileLayer = L.tileLayer(tiles[1], { opacity:0.9 }).addTo(map);
-});
-tileLayer.addTo(map);
-
-// طبقة labels خفيفة فوقها
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', { 
-    opacity:0.5, zIndex:10 
+// CartoDB Dark - مجاني 100% بدون مفتاح
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19,
+    subdomains: 'abcd',
+    opacity: 0.95
 }).addTo(map);
 
 // شبكة تكتيكية SVG على الخريطة
