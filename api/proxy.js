@@ -3,9 +3,10 @@ export default async function handler(req, res) {
     const apiKeyGNews = process.env.GNEWS_API_KEY;
     const apiKeyGroq = process.env.GROQ_API_KEY;
     const apiKeyGemini = process.env.GEMINI_API_KEY;
+    const apiKeyGuardian = process.env.GUARDIAN_API_KEY || 'test'; // مجاني بدون مفتاح
     const apiKeyNews = process.env.NEWS_API_KEY;
 
-    // منع الـ cache على كل الردود
+    // منع الـ cache
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     res.setHeader('Pragma', 'no-cache');
 
@@ -13,31 +14,133 @@ export default async function handler(req, res) {
 
         // ===== جلب الأخبار =====
         if (type === 'news') {
-            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+
+            const allArticles = [];
+
+            // ===== 1. RSS Feeds (مصادر عربية مباشرة) =====
+            const rssFeeds = [
+                { url: 'https://www.aljazeera.net/feed/topic-35', source: 'الجزيرة' },
+                { url: 'https://arabic.rt.com/rss/', source: 'RT عربي' },
+                { url: 'https://www.bbc.com/arabic/index.xml', source: 'BBC عربي' },
+                { url: 'https://alarabiya.net/ar/rss.xml', source: 'العربية' },
+                { url: 'https://www.france24.com/ar/rss', source: 'فرانس 24' },
+                { url: 'https://al-ain.com/rss', source: 'العين' },
+                { url: 'https://www.independentarabia.com/rss.xml', source: 'إندبندنت عربي' },
+                { url: 'https://aawsat.com/home/rss', source: 'الشرق الأوسط' },
+                // مصادر إقليمية
+                { url: 'https://www.almayadeen.net/rss', source: 'الميادين' },
+                { url: 'https://www.irna.ir/rss.xml', source: 'IRNA إيران' },
+                { url: 'https://www.rudaw.net/arabic/rss', source: 'روداو كردستان' },
+                { url: 'https://www.alsumaria.tv/rss', source: 'السومرية العراق' },
+            ];
+
+            // جلب RSS بالتوازي
+            const rssPromises = rssFeeds.map(async (feed) => {
+                try {
+                    // استخدام rss2json API مجاني لتحويل RSS لـ JSON
+                    const rssUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}&count=5`;
+                    const resp = await fetch(rssUrl, { signal: AbortSignal.timeout(5000) });
+                    if (!resp.ok) return [];
+                    const data = await resp.json();
+                    if (data.status !== 'ok' || !data.items?.length) return [];
+                    return data.items.map(item => ({
+                        title: item.title?.trim() || '',
+                        publishedAt: item.pubDate || new Date().toISOString(),
+                        source: { name: feed.source },
+                        url: item.link || '',
+                        lang: 'ar'
+                    })).filter(a => a.title);
+                } catch (e) { return []; }
+            });
+
+            const rssResults = await Promise.allSettled(rssPromises);
+            rssResults.forEach(r => { if (r.status === 'fulfilled') allArticles.push(...r.value); });
+
+            // ===== 2. The Guardian API (دولي - سيُترجم) =====
             try {
-                const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(q)}&language=ar&sortBy=publishedAt&pageSize=15&apiKey=${apiKeyNews}`;
-                const response = await fetch(url);
-                const data = await response.json();
-                if (response.ok && data.articles?.length > 0) {
-                    return res.status(200).json({
-                        articles: data.articles.map(a => ({
-                            title: a.title,
-                            publishedAt: a.publishedAt,
-                            source: { name: a.source?.name || 'مجهول' },
-                            url: a.url
-                        }))
-                    });
+                const guardianUrl = `https://content.guardianapis.com/search?q=middle+east+OR+iran+OR+israel+OR+iraq+OR+saudi&section=world&page-size=10&order-by=newest&api-key=${apiKeyGuardian}`;
+                const gResp = await fetch(guardianUrl, { signal: AbortSignal.timeout(5000) });
+                if (gResp.ok) {
+                    const gData = await gResp.json();
+                    if (gData.response?.results?.length) {
+                        gData.response.results.forEach(item => {
+                            allArticles.push({
+                                title: item.webTitle,
+                                publishedAt: item.webPublicationDate,
+                                source: { name: 'The Guardian' },
+                                url: item.webUrl,
+                                lang: 'en'
+                            });
+                        });
+                    }
                 }
             } catch (e) {}
-            const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(q)}&lang=ar&max=10&sortby=publishedAt&apikey=${apiKeyGNews}&_=${Date.now()}`;
-            const response = await fetch(url);
-            if (!response.ok) return res.status(502).json({ error: "فشل جميع مصادر الأخبار" });
-            return res.status(200).json(await response.json());
+
+            // ===== 3. GNews كبديل إضافي =====
+            try {
+                const gnewsUrl = `https://gnews.io/api/v4/search?q=${encodeURIComponent(q)}&lang=ar&max=5&sortby=publishedAt&apikey=${apiKeyGNews}&_=${Date.now()}`;
+                const gnResp = await fetch(gnewsUrl, { signal: AbortSignal.timeout(5000) });
+                if (gnResp.ok) {
+                    const gnData = await gnResp.json();
+                    if (gnData.articles?.length) {
+                        gnData.articles.forEach(a => {
+                            allArticles.push({ ...a, lang: 'ar' });
+                        });
+                    }
+                }
+            } catch (e) {}
+
+            if (allArticles.length === 0) {
+                return res.status(502).json({ error: "فشل جميع مصادر الأخبار" });
+            }
+
+            // ترتيب من الأحدث للأقدم
+            allArticles.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+
+            // إزالة التكرار
+            const seen = new Set();
+            const unique = allArticles.filter(a => {
+                const key = a.title.substring(0, 30);
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+
+            // ترجمة العناوين الإنجليزية بـ Groq
+            const toTranslate = unique.filter(a => a.lang === 'en').slice(0, 8);
+            if (toTranslate.length > 0 && apiKeyGroq) {
+                try {
+                    const translateResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKeyGroq}` },
+                        body: JSON.stringify({
+                            model: 'llama-3.3-70b-versatile',
+                            messages: [{
+                                role: 'user',
+                                content: `ترجم هذه العناوين الإخبارية للعربية. أجب بـ JSON فقط: {"translations": ["ترجمة1", "ترجمة2", ...]}\nالعناوين:\n${toTranslate.map((a, i) => `${i + 1}. ${a.title}`).join('\n')}`
+                            }],
+                            temperature: 0.1,
+                            max_tokens: 800,
+                            response_format: { type: 'json_object' }
+                        })
+                    });
+                    if (translateResp.ok) {
+                        const tData = await translateResp.json();
+                        const translations = JSON.parse(tData.choices?.[0]?.message?.content || '{}').translations || [];
+                        toTranslate.forEach((a, i) => {
+                            if (translations[i]) a.title = translations[i];
+                            a.lang = 'ar';
+                        });
+                    }
+                } catch (e) {}
+            }
+
+            return res.status(200).json({ articles: unique.slice(0, 20) });
         }
 
         // ===== تحليل الخبر =====
         if (type === 'analyze') {
-            const decodedText = decodeURIComponent(text || '').replace(/["\\`]/g, ' ').trim();
+            const decodedText = decodeURIComponent(text || '').replace(/["\\`%&+#]/g, ' ').trim();
             if (!decodedText.trim()) return res.status(400).json({ error: "النص فارغ" });
 
             const prompt = `أنت محلل جيوسياسي استراتيجي خبير. حلل هذا الخبر بعمق واجب بـ JSON نقي فقط:
@@ -68,7 +171,7 @@ export default async function handler(req, res) {
                         body: JSON.stringify({
                             model: 'llama-3.3-70b-versatile',
                             messages: [
-                                { role: 'system', content: 'أنت محلل جيوسياسي. ترد بـ JSON نقي فقط بدون أي نص خارجه.' },
+                                { role: 'system', content: 'أنت محلل جيوسياسي. ترد بـ JSON نقي فقط.' },
                                 { role: 'user', content: prompt }
                             ],
                             temperature: 0.3,
