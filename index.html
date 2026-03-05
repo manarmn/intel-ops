@@ -29,7 +29,7 @@
         .status-pill { padding: 3px 10px; border-radius: 2px; font-size: 11px; font-weight: 700; }
 
         /* LAYOUT */
-        .dashboard { display: grid; grid-template-columns: 320px 1fr 420px; height: calc(100vh - 48px); position: relative; z-index: 1; }
+        .dashboard { display: grid; grid-template-columns: 320px 1fr 420px; grid-template-rows: 1fr; height: calc(100vh - 48px); position: relative; z-index: 1; }
         .col { border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
         .col-header { padding: 9px 14px; background: rgba(0,0,0,0.5); border-bottom: 1px solid var(--border); font-family: 'JetBrains Mono'; font-size: 11px; color: var(--accent); letter-spacing: 1px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
         .badge { background: var(--accent); color: #000; padding: 1px 7px; border-radius: 2px; font-size: 10px; font-weight: 700; }
@@ -38,7 +38,7 @@
         .scroll::-webkit-scrollbar-thumb { background: var(--border); }
 
         /* MAP */
-        #map { height: 260px; flex-shrink: 0; filter: saturate(0.3) brightness(0.7) hue-rotate(180deg); border-bottom: 1px solid var(--border); }
+        #map { height: 300px; min-height: 300px; flex-shrink: 0; filter: saturate(0.15) brightness(0.6) hue-rotate(190deg) contrast(1.1); border-bottom: 1px solid var(--border); }
         .map-label { position: absolute; top: 8px; right: 8px; z-index: 1000; font-family: 'JetBrains Mono'; font-size: 10px; color: var(--accent); background: rgba(2,6,8,0.9); padding: 4px 8px; border: 1px solid var(--accent); pointer-events: none; }
 
         /* STATS */
@@ -136,8 +136,8 @@
 
     <!-- COL 1: خريطة + إحصائيات -->
     <div class="col">
-        <div style="position:relative;flex-shrink:0">
-            <div id="map"></div>
+        <div style="position:relative;flex-shrink:0;height:300px;min-height:300px">
+            <div id="map" style="height:300px;width:100%"></div>
             <div class="map-label">GEO // TACTICAL VIEW</div>
             <div style="position:absolute;bottom:8px;left:8px;right:8px;z-index:1000;display:flex;gap:4px">
                 <input id="geo-search" type="text" placeholder="🔍 ابحث عن موقع..." 
@@ -189,6 +189,7 @@
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script>
 const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([30, 45], 4);
+setTimeout(() => map.invalidateSize(), 200);
 
 // طبقات الخريطة
 const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
