@@ -10,12 +10,11 @@ export default async function handler(req, res) {
 
     try {
 
-        // ===== جلب الأخبار =====
         if (type === 'news') {
             const allArticles = [];
 
-            // ===== RSS Feeds عربية =====
             const rssFeeds = [
+                // عربية أساسية
                 { url: 'https://www.aljazeera.net/feed/topic-35', source: 'الجزيرة', flag: '🇶🇦' },
                 { url: 'https://arabic.rt.com/rss/', source: 'RT عربي', flag: '🇷🇺' },
                 { url: 'https://www.bbc.com/arabic/index.xml', source: 'BBC عربي', flag: '🇬🇧' },
@@ -23,11 +22,37 @@ export default async function handler(req, res) {
                 { url: 'https://www.france24.com/ar/rss', source: 'فرانس 24', flag: '🇫🇷' },
                 { url: 'https://www.independentarabia.com/rss.xml', source: 'إندبندنت عربي', flag: '🌍' },
                 { url: 'https://aawsat.com/home/rss', source: 'الشرق الأوسط', flag: '🗞️' },
-                { url: 'https://www.almayadeen.net/rss', source: 'الميادين', flag: '🇱🇧' },
-                { url: 'https://www.irna.ir/rss.xml', source: 'IRNA إيران', flag: '🇮🇷' },
-                { url: 'https://www.rudaw.net/arabic/rss', source: 'روداو', flag: '🏳️' },
-                { url: 'https://www.alsumaria.tv/rss', source: 'السومرية', flag: '🇮🇶' },
                 { url: 'https://www.skynewsarabia.com/rss.xml', source: 'سكاي نيوز عربية', flag: '🇦🇪' },
+                { url: 'https://www.almayadeen.net/rss', source: 'الميادين', flag: '🇱🇧' },
+                // إيرانية
+                { url: 'https://www.irna.ir/rss.xml', source: 'IRNA إيران', flag: '🇮🇷' },
+                { url: 'https://www.tasnimnews.com/ar/rss', source: 'تسنيم', flag: '🇮🇷' },
+                { url: 'https://www.mehrnews.com/rss', source: 'مهر نيوز', flag: '🇮🇷' },
+                { url: 'https://www.presstv.ir/rss.xml', source: 'Press TV', flag: '🇮🇷' },
+                // تركية
+                { url: 'https://www.aa.com.tr/ar/rss/default?cat=live', source: 'الأناضول', flag: '🇹🇷' },
+                { url: 'https://www.trtarabi.com/rss', source: 'TRT عربي', flag: '🇹🇷' },
+                // عراقية
+                { url: 'https://www.rudaw.net/arabic/rss', source: 'روداو', flag: '🇮🇶' },
+                { url: 'https://www.alsumaria.tv/rss', source: 'السومرية', flag: '🇮🇶' },
+                { url: 'https://shafaq.com/ar/rss.xml', source: 'شفق نيوز', flag: '🇮🇶' },
+                { url: 'https://www.baghdadtoday.news/rss.xml', source: 'بغداد اليوم', flag: '🇮🇶' },
+                // خليجية
+                { url: 'https://www.alwatan.com.sa/rss.xml', source: 'الوطن السعودية', flag: '🇸🇦' },
+                { url: 'https://okaz.com.sa/rss.xml', source: 'عكاظ', flag: '🇸🇦' },
+                { url: 'https://www.alayam.com/rss', source: 'الأيام البحرين', flag: '🇧🇭' },
+                // سورية
+                { url: 'https://sana.sy/feed/', source: 'سانا سوريا', flag: '🇸🇾' },
+                { url: 'https://orient-news.net/feed/', source: 'أورينت سوريا', flag: '🇸🇾' },
+                // يمنية
+                { url: 'https://www.sabanews.net/rss.xml', source: 'سبأ اليمن', flag: '🇾🇪' },
+                { url: 'https://almasirah.net/rss.xml', source: 'المسيرة اليمن', flag: '🇾🇪' },
+                // عبرية (ستُترجم)
+                { url: 'https://www.timesofisrael.com/feed/', source: 'Times of Israel', flag: '🇮🇱' },
+                { url: 'https://www.jpost.com/Rss/RssFeedsHeadlines.aspx', source: 'Jerusalem Post', flag: '🇮🇱' },
+                // أمريكية/دولية (ستُترجم)
+                { url: 'https://feeds.reuters.com/reuters/worldNews', source: 'Reuters', flag: '🌐' },
+                { url: 'https://www.al-monitor.com/rss', source: 'Al-Monitor', flag: '🌐' },
             ];
 
             const rssPromises = rssFeeds.map(async (feed) => {
@@ -43,50 +68,34 @@ export default async function handler(req, res) {
                         source: { name: feed.source, flag: feed.flag },
                         url: item.link || '',
                         lang: 'ar'
-                    })).filter(a => a.title && a.title.length > 10);
+                    })).filter(a => a.title && a.title.length > 5);
                 } catch (e) { return []; }
             });
 
             const rssResults = await Promise.allSettled(rssPromises);
             rssResults.forEach(r => { if (r.status === 'fulfilled') allArticles.push(...r.value); });
 
-            // ===== The Guardian - ترجمة فورية مدمجة =====
+            // The Guardian مع ترجمة فورية
             try {
-                const guardianUrl = `https://content.guardianapis.com/search?q=middle+east+OR+iran+OR+israel+OR+iraq+OR+saudi+OR+syria&section=world&page-size=8&order-by=newest&api-key=${apiKeyGuardian}`;
+                const guardianUrl = `https://content.guardianapis.com/search?q=middle+east+OR+iran+OR+israel+OR+iraq+OR+saudi+OR+syria&section=world&page-size=10&order-by=newest&api-key=${apiKeyGuardian}`;
                 const gResp = await fetch(guardianUrl, { signal: AbortSignal.timeout(5000) });
                 if (gResp.ok) {
                     const gData = await gResp.json();
-                    if (gData.response?.results?.length && apiKeyGroq) {
-                        const enTitles = gData.response.results.map(i => i.webTitle);
-                        // ترجمة دفعة واحدة
-                        const tResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKeyGroq}` },
-                            body: JSON.stringify({
-                                model: 'llama-3.3-70b-versatile',
-                                messages: [{ role: 'user', content: `ترجم هذه العناوين للعربية. JSON فقط: {"t":["ت1","ت2",...]}\n${enTitles.map((t,i)=>`${i+1}. ${t}`).join('\n')}` }],
-                                temperature: 0.1, max_tokens: 600,
-                                response_format: { type: 'json_object' }
-                            })
-                        });
-                        if (tResp.ok) {
-                            const tData = await tResp.json();
-                            const translations = JSON.parse(tData.choices?.[0]?.message?.content || '{}').t || [];
-                            gData.response.results.forEach((item, i) => {
-                                allArticles.push({
-                                    title: translations[i] || item.webTitle,
-                                    publishedAt: item.webPublicationDate,
-                                    source: { name: 'The Guardian', flag: '🇬🇧' },
-                                    url: item.webUrl,
-                                    lang: 'ar'
-                                });
+                    if (gData.response?.results?.length) {
+                        gData.response.results.forEach(item => {
+                            allArticles.push({
+                                title: item.webTitle,
+                                publishedAt: item.webPublicationDate,
+                                source: { name: 'The Guardian', flag: '🇬🇧' },
+                                url: item.webUrl,
+                                lang: 'en'
                             });
-                        }
+                        });
                     }
                 }
             } catch (e) {}
 
-            // ===== GNews =====
+            // GNews
             try {
                 const gnewsUrl = `https://gnews.io/api/v4/search?q=${encodeURIComponent(q)}&lang=ar&max=5&sortby=publishedAt&apikey=${apiKeyGNews}&_=${Date.now()}`;
                 const gnResp = await fetch(gnewsUrl, { signal: AbortSignal.timeout(5000) });
@@ -102,24 +111,46 @@ export default async function handler(req, res) {
             allArticles.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
             const seen = new Set();
             const unique = allArticles.filter(a => {
-                if (!a.title || a.title.length < 10) return false;
+                if (!a.title || a.title.length < 5) return false;
                 const key = a.title.substring(0, 25).toLowerCase();
                 if (seen.has(key)) return false;
                 seen.add(key);
                 return true;
             });
 
-            // إزالة أي عنوان لا يزال بالإنجليزية (حروف لاتينية أكثر من 50%)
-            const arabicOnly = unique.filter(a => {
+            // ترجمة كل العناوين غير العربية على دفعات
+            const toTranslate = unique.filter(a => {
                 const arabicChars = (a.title.match(/[\u0600-\u06FF]/g) || []).length;
-                const totalChars = a.title.replace(/\s/g, '').length;
-                return totalChars === 0 || (arabicChars / totalChars) > 0.4;
+                return arabicChars === 0;
             });
 
-            return res.status(200).json({ articles: (arabicOnly.length > 5 ? arabicOnly : unique).slice(0, 25) });
+            if (toTranslate.length > 0 && apiKeyGroq) {
+                try {
+                    for (let i = 0; i < toTranslate.length; i += 10) {
+                        const batch = toTranslate.slice(i, i + 10);
+                        const tResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKeyGroq}` },
+                            body: JSON.stringify({
+                                model: 'llama-3.3-70b-versatile',
+                                messages: [{ role: 'user', content: `ترجم للعربية. JSON فقط: {"t":["ت1","ت2",...]}\n${batch.map((a,i)=>`${i+1}. ${a.title}`).join('\n')}` }],
+                                temperature: 0.1, max_tokens: 800,
+                                response_format: { type: 'json_object' }
+                            })
+                        });
+                        if (tResp.ok) {
+                            const tData = await tResp.json();
+                            const translations = JSON.parse(tData.choices?.[0]?.message?.content || '{}').t || [];
+                            batch.forEach((a, i) => { if (translations[i]) { a.title = translations[i]; a.lang = 'ar'; } });
+                        }
+                    }
+                } catch(e) {}
+            }
+
+            unique.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+            return res.status(200).json({ articles: unique.slice(0, 60) });
         }
 
-        // ===== تحليل الخبر =====
         if (type === 'analyze') {
             const decodedText = decodeURIComponent(text || '').replace(/["\\`%&+#]/g, ' ').trim();
             if (!decodedText.trim()) return res.status(400).json({ error: "النص فارغ" });
