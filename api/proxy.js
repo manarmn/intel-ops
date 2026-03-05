@@ -33,7 +33,7 @@ export default async function handler(req, res) {
 
         // ===== تحليل الخبر =====
         if (type === 'analyze') {
-            const decodedText = decodeURIComponent(text || '');
+            const decodedText = decodeURIComponent(text || '').replace(/["\\`]/g, ' ').trim();
             if (!decodedText.trim()) return res.status(400).json({ error: "النص فارغ" });
 
             const prompt = `أنت محلل جيوسياسي استراتيجي خبير. حلل هذا الخبر بعمق واجب بـ JSON نقي فقط:
