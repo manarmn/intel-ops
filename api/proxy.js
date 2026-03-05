@@ -41,7 +41,7 @@ export default async function handler(req, res) {
 ملاحظة: lat و lng يجب أن تكون أرقاماً حقيقية وليس نصاً.`;
 
             // fallback تلقائي: يجرب النماذج بالترتيب حتى ينجح أحدها
-            const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+            const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash-lite'];
             let response = null;
             let data = null;
 
