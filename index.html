@@ -139,6 +139,12 @@
         <div style="position:relative;flex-shrink:0">
             <div id="map"></div>
             <div class="map-label">GEO // TACTICAL VIEW</div>
+            <div style="position:absolute;bottom:8px;left:8px;right:8px;z-index:1000;display:flex;gap:4px">
+                <input id="geo-search" type="text" placeholder="🔍 ابحث عن موقع..." 
+                    style="flex:1;background:rgba(2,6,8,0.9);border:1px solid var(--muted);color:var(--text);padding:4px 8px;font-family:Cairo,sans-serif;font-size:11px;border-radius:2px;outline:none"
+                    oninput="geoSearch(this.value)" />
+                <button onclick="clearMapLayers()" style="background:rgba(255,45,45,0.15);border:1px solid var(--red);color:var(--red);padding:4px 8px;font-size:10px;cursor:pointer;border-radius:2px;font-family:JetBrains Mono">CLR</button>
+            </div>
         </div>
         <div class="col-header">📊 GEOSPATIAL STATS <span class="badge" id="targets-count">0</span></div>
         <div class="scroll" style="padding:12px">
@@ -180,11 +186,53 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script>
 const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([30, 45], 4);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+// طبقات الخريطة
+const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
+const darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png');
+const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png');
+darkLayer.addTo(map);
+
+// بيانات الطبقة الحرارية - مناطق التوتر الدائمة
+const baseHeatData = [
+    [33.3, 44.4, 0.8],  // العراق
+    [31.5, 34.8, 0.9],  // غزة
+    [33.5, 36.3, 0.7],  // سوريا
+    [32.0, 53.0, 0.7],  // إيران
+    [15.3, 44.2, 0.6],  // اليمن
+    [33.9, 35.5, 0.5],  // لبنان
+    [30.0, 31.2, 0.4],  // مصر
+    [24.7, 46.7, 0.4],  // السعودية
+    [40.5, 49.9, 0.5],  // أذربيجان
+];
+
+let heatLayer = L.heatLayer(baseHeatData, {
+    radius: 35, blur: 25, maxZoom: 8,
+    gradient: { 0.2: '#00ff88', 0.4: '#ffe600', 0.6: '#ff8c00', 0.8: '#ff2d2d', 1.0: '#ff0055' }
+}).addTo(map);
+
+// طبقة حدود الدول من OSM
+let countriesLayer = null;
+let tensionLines = [];
 const markers = [];
 const targetHistory = [];
+const analysisPoints = []; // لخطوط التوتر
+
+// تحميل حدود الدول
+async function loadCountries() {
+    try {
+        const resp = await fetch('https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        countriesLayer = L.geoJSON(data, {
+            style: { color: 'rgba(0,242,255,0.15)', weight: 1, fillOpacity: 0, dashArray: '3,5' }
+        }).addTo(map);
+    } catch(e) {}
+}
+loadCountries();
 
 // ساعة
 setInterval(() => { document.getElementById('clock').innerText = new Date().toUTCString().slice(17,25) + ' Z'; }, 1000);
@@ -248,13 +296,13 @@ async function analyzeNews(idx) {
         const threatClass = getThreatClass(d.threat_level);
         const score = Math.min(100, Math.max(0, parseInt(d.threat_score) || 50));
 
-        // خريطة
+        // خريطة متكاملة
         if (hasCoords) {
-            const marker = L.circleMarker([lat, lng], { color: threatColor, fillColor: threatColor, radius: 10, fillOpacity: 0.85, weight: 2 }).addTo(map);
-            L.circleMarker([lat, lng], { color: threatColor, fillColor: 'transparent', radius: 18, fillOpacity: 0, weight: 1, opacity: 0.4 }).addTo(map);
-            marker.bindPopup(`<div style="font-family:Cairo,sans-serif;direction:rtl;font-size:12px"><b style="color:${threatColor}">${d.location_name}</b></div>`);
-            markers.push(marker);
-            map.flyTo([lat, lng], 6, { duration: 1.2 });
+            addTacticalMarker(lat, lng, threatColor, d.location_name, score, d.threat_level);
+            highlightCountry(lat, lng, threatColor);
+            if (analysisPoints.length > 1) drawTensionLines(threatColor);
+            updateHeatLayer(lat, lng, score);
+            map.flyTo([lat, lng], 6, { duration: 1.5, easeLinearity: 0.3 });
             updateStats(d, threatColor);
         }
 
@@ -345,6 +393,120 @@ async function analyzeNews(idx) {
         setTimeout(() => { statusEl.innerText = 'STANDBY'; statusEl.style.color = 'var(--muted)'; }, 3000);
     }
 }
+
+// ===== وظائف الخريطة المتكاملة =====
+
+function addTacticalMarker(lat, lng, color, name, score, level) {
+    const radius = 8 + (score / 20);
+
+    // النبضة الخارجية المتحركة
+    const pulseIcon = L.divIcon({
+        className: '',
+        html: `<div style="position:relative;width:${radius*4}px;height:${radius*4}px">
+            <div style="position:absolute;inset:0;border-radius:50%;background:${color};opacity:0.15;animation:mapPulse 1.5s ease-out infinite"></div>
+            <div style="position:absolute;inset:25%;border-radius:50%;background:${color};opacity:0.3;animation:mapPulse 1.5s ease-out infinite 0.3s"></div>
+            <div style="position:absolute;inset:38%;border-radius:50%;background:${color};border:2px solid ${color};box-shadow:0 0 12px ${color}"></div>
+        </div>`,
+        iconSize: [radius*4, radius*4],
+        iconAnchor: [radius*2, radius*2]
+    });
+
+    const m = L.marker([lat, lng], { icon: pulseIcon }).addTo(map);
+    m.bindPopup(`
+        <div style="font-family:Cairo,sans-serif;direction:rtl;min-width:160px;background:#070d12;border:1px solid ${color};padding:10px;border-radius:3px">
+            <div style="color:${color};font-weight:700;font-size:13px;margin-bottom:6px">📍 ${name}</div>
+            <div style="font-family:JetBrains Mono;font-size:10px;color:#3d5166">${lat.toFixed(3)}° N, ${lng.toFixed(3)}° E</div>
+            <div style="margin-top:6px;padding:3px 8px;background:${color}22;border:1px solid ${color}44;font-size:11px;color:${color};text-align:center;border-radius:2px">${level}</div>
+            <div style="margin-top:5px;background:#0b1520;height:4px;border-radius:2px"><div style="width:${score}%;height:100%;background:${color};border-radius:2px"></div></div>
+        </div>`, { className: 'tactical-popup' });
+
+    markers.push(m);
+    analysisPoints.push({ lat, lng, color, name, score });
+}
+
+function highlightCountry(lat, lng, color) {
+    if (!countriesLayer) return;
+    const point = L.latLng(lat, lng);
+    countriesLayer.eachLayer(layer => {
+        try {
+            if (layer.getBounds && layer.getBounds().contains(point)) {
+                layer.setStyle({ color: color, weight: 2, fillColor: color, fillOpacity: 0.06 });
+                setTimeout(() => layer.setStyle({ color: 'rgba(0,242,255,0.15)', weight: 1, fillOpacity: 0 }), 4000);
+            }
+        } catch(e) {}
+    });
+}
+
+function drawTensionLines(color) {
+    tensionLines.forEach(l => map.removeLayer(l));
+    tensionLines = [];
+    const pts = analysisPoints.slice(-5);
+    for (let i = 0; i < pts.length - 1; i++) {
+        const line = L.polyline([[pts[i].lat, pts[i].lng], [pts[i+1].lat, pts[i+1].lng]], {
+            color: color, weight: 1, opacity: 0.4, dashArray: '5,8'
+        }).addTo(map);
+        tensionLines.push(line);
+    }
+}
+
+function updateHeatLayer(lat, lng, score) {
+    const intensity = 0.3 + (score / 150);
+    baseHeatData.push([lat, lng, intensity]);
+    map.removeLayer(heatLayer);
+    heatLayer = L.heatLayer(baseHeatData, {
+        radius: 35, blur: 25, maxZoom: 8,
+        gradient: { 0.2: '#00ff88', 0.4: '#ffe600', 0.6: '#ff8c00', 0.8: '#ff2d2d', 1.0: '#ff0055' }
+    }).addTo(map);
+}
+
+function clearMapLayers() {
+    markers.forEach(m => map.removeLayer(m));
+    tensionLines.forEach(l => map.removeLayer(l));
+    markers.length = 0; tensionLines.length = 0; analysisPoints.length = 0;
+    baseHeatData.splice(9); // إبقاء البيانات الأساسية
+    map.removeLayer(heatLayer);
+    heatLayer = L.heatLayer(baseHeatData, {
+        radius: 35, blur: 25, maxZoom: 8,
+        gradient: { 0.2: '#00ff88', 0.4: '#ffe600', 0.6: '#ff8c00', 0.8: '#ff2d2d', 1.0: '#ff0055' }
+    }).addTo(map);
+    targetHistory.length = 0;
+    document.getElementById('targets-list').innerHTML = '';
+    document.getElementById('stat-targets').innerText = '0';
+    document.getElementById('targets-count').innerText = '0';
+}
+
+// بحث جغرافي تلقائي بـ Nominatim (OpenStreetMap)
+let geoSearchTimeout = null;
+async function geoSearch(query) {
+    if (!query || query.length < 3) return;
+    clearTimeout(geoSearchTimeout);
+    geoSearchTimeout = setTimeout(async () => {
+        try {
+            const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=3&accept-language=ar`;
+            const resp = await fetch(url, { headers: { 'User-Agent': 'INTEL-OPS/3.0' } });
+            const results = await resp.json();
+            if (results.length > 0) {
+                const r = results[0];
+                const lat = parseFloat(r.lat), lng = parseFloat(r.lon);
+                map.flyTo([lat, lng], 7, { duration: 1.2 });
+                L.popup({ className: 'tactical-popup' })
+                    .setLatLng([lat, lng])
+                    .setContent(`<div style="font-family:Cairo,sans-serif;direction:rtl;color:#00f2ff;background:#070d12;padding:8px;border:1px solid #00f2ff;font-size:12px"><b>${r.display_name.split(',')[0]}</b><br><span style="font-family:JetBrains Mono;font-size:10px;color:#3d5166">${lat.toFixed(3)}°, ${lng.toFixed(3)}°</span></div>`)
+                    .openOn(map);
+                document.getElementById('geo-search').value = r.display_name.split(',')[0];
+            }
+        } catch(e) {}
+    }, 600);
+}
+
+// CSS للنبض
+const style = document.createElement('style');
+style.textContent = \`
+@keyframes mapPulse { 0% { transform:scale(0.5);opacity:0.6; } 100% { transform:scale(2.5);opacity:0; } }
+.tactical-popup .leaflet-popup-content-wrapper { background:transparent;border:none;box-shadow:none;padding:0 }
+.tactical-popup .leaflet-popup-tip-container { display:none }
+\`;
+document.head.appendChild(style);
 
 function updateStats(d, threatColor) {
     const count = markers.length;
