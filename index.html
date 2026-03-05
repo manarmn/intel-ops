@@ -116,7 +116,7 @@
         /* TICKER */
         .ticker-wrap { overflow: hidden; background: rgba(0,242,255,0.04); border-top: 1px solid var(--border); padding: 0 8px; display: flex; align-items: center; height: 26px; flex-shrink: 0; font-size: 11px; font-family: 'JetBrains Mono'; color: var(--muted); }
         .ticker-label { color: var(--accent); font-size: 10px; white-space: nowrap; margin-left: 10px; }
-        #ticker-text { white-space: nowrap; animation: ticker 60s linear infinite; }
+        #ticker-text { white-space: nowrap; animation: ticker 120s linear infinite; }
         @keyframes ticker { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
     </style>
 </head>
@@ -220,7 +220,8 @@ async function loadNews() {
 
 // ===== تحليل الخبر =====
 async function analyzeNews(idx) {
-    const encodedTitle = encodeURIComponent(window._newsItems?.[idx]?.title || '');
+    const rawTitle = (window._newsItems?.[idx]?.title || '').replace(/["\\]/g, ' ').trim();
+    const encodedTitle = encodeURIComponent(rawTitle);
     document.querySelectorAll('.news-item').forEach(i => i.classList.remove('active'));
     const el = document.getElementById(`news-${idx}`);
     if (el) el.classList.add('active');
@@ -348,7 +349,7 @@ function updateStats(d, threatColor) {
     document.getElementById('stat-engine').innerHTML = `<span style="color:${d._source === 'groq' ? 'var(--accent)' : 'var(--orange)'}">${d._source?.toUpperCase() || '--'}</span>`;
     document.getElementById('stat-time').innerText = new Date().toLocaleTimeString('ar-IQ');
 
-    targetHistory.unshift({ name: d.location_name, threat: d.threat_level, color: threatColor });
+    targetHistory.unshift({ name: d.location_name || 'غير محدد', threat: d.threat_level || '--', color: threatColor });
     if (targetHistory.length > 6) targetHistory.pop();
     document.getElementById('targets-list').innerHTML = targetHistory.map(t => `
         <div class="target-item">
