@@ -4,6 +4,10 @@
     "api/proxy.js": {
       "maxDuration": 30,
       "memory": 1024
+    },
+    "api/analyze.js": {
+      "maxDuration": 60,
+      "memory": 1024
     }
   },
   "headers": [
