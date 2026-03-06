@@ -1,7 +1,7 @@
 {
   "version": 2,
   "functions": {
-    "pages/api/proxy.js": {
+    "api/proxy.js": {
       "maxDuration": 30,
       "memory": 1024
     }
