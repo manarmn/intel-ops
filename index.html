@@ -421,7 +421,7 @@ window.analyze = async function(idx) {
     st.innerText='PROCESSING...'; st.style.color='var(--yellow)';
     view.innerHTML='<div class="loading"><div class="spinner"></div><span>تحليل الوضع الاستراتيجي...</span></div>';
     try {
-        const res = await fetch('/api/proxy?type=analyze&text='+encodeURIComponent(title));
+        const res = await fetch('/api/analyze?text='+encodeURIComponent(title));
         if (!res.ok) throw new Error('HTTP '+res.status);
         const d = await res.json();
         const lat=parseFloat(d.lat), lng=parseFloat(d.lng);
@@ -475,10 +475,94 @@ window.analyze = async function(idx) {
         st.innerText='COMPLETE'; st.style.color='var(--green)';
         setTimeout(()=>{st.innerText='STANDBY';st.style.color='var(--muted)'},3000);
     } catch(e) {
-        view.innerHTML='<div class="err">⚠️ فشل التحليل: '+e.message+'</div>';
-        st.innerText='ERROR'; st.style.color='var(--red)';
-        setTimeout(()=>{st.innerText='STANDBY';st.style.color='var(--muted)'},3000);
+        // Fallback - تحليل محلي فوري عند فشل الـ backend
+        const fb = localFallback(title);
+        const tc2=color(fb.threat_level), cls2=tclass(fb.threat_level);
+        const score2=fb.threat_score;
+        const lat2=fb.lat, lng2=fb.lng;
+        addMarker(lat2,lng2,tc2,fb.location_name,score2,fb.threat_level);
+        highlightCountry(lat2,lng2,tc2);
+        map.flyTo([lat2,lng2],6,{duration:1.5});
+        document.getElementById('s-targets').innerText=markers.length;
+        document.getElementById('tgt-count').innerText=markers.length;
+        document.getElementById('s-loc').innerText=fb.location_name;
+        document.getElementById('s-threat').innerHTML='<span style="color:'+tc2+';font-weight:700">'+fb.threat_level+'</span>';
+        document.getElementById('s-engine').innerHTML='<span style="color:var(--orange)">LOCAL</span>';
+        targetHistory.unshift({name:fb.location_name,threat:fb.threat_level,color:tc2});
+        if(targetHistory.length>6) targetHistory.pop();
+        document.getElementById('tgt-list').innerHTML=targetHistory.map(t=>
+            '<div class="tgt"><div class="tgt-dot" style="background:'+t.color+';box-shadow:0 0 5px '+t.color+'"></div>'
+            +'<span style="flex:1">'+t.name+'</span>'
+            +'<span style="font-size:10px;color:'+t.color+';font-family:JetBrains Mono">'+t.threat+'</span></div>'
+        ).join('');
+        const sc2=fb.scenarios?'<div class="sec"><div class="sec-lbl">// السيناريوهات</div><div class="scenarios">'
+            +'<div class="sc-item sc-cur"><div class="sc-lbl">◈ الوضع الراهن</div>'+fb.scenarios.current+'</div>'
+            +'<div class="sc-item sc-best"><div class="sc-lbl">▲ أفضل سيناريو</div>'+fb.scenarios.best+'</div>'
+            +'<div class="sc-item sc-worst"><div class="sc-lbl">▼ أسوأ سيناريو</div>'+fb.scenarios.worst+'</div>'
+            +'</div></div>':'';
+        view.innerHTML='<div class="card">'
+            +'<div class="threat-hdr"><span class="tbadge '+cls2+'">'+fb.threat_level+'</span>'
+            +'<div style="display:flex;align-items:center;gap:8px">'
+            +'<span class="src-tag sm">LOCAL</span>'
+            +'<span style="font-family:JetBrains Mono;font-size:10px;color:var(--muted)">'+fb.location_name+'</span>'
+            +'</div></div>'
+            +'<div class="score-wrap"><div class="score-lbl"><span>// مؤشر الخطر</span><span style="color:'+tc2+'">'+score2+'/100</span></div>'
+            +'<div class="score-bar"><div class="score-fill" style="width:'+score2+'%;background:'+tc2+'"></div></div></div>'
+            +'<div class="sec"><div class="sec-lbl">// التقرير الاستراتيجي</div><p class="sec-txt">'+fb.summary+'</p></div>'
+            +'<div class="sec"><div class="sec-lbl">// الأطراف</div><div class="tags">'+fb.parties.map(p=>'<span class="tag">'+p+'</span>').join('')+'</div></div>'
+            +sc2
+            +'<div class="sec"><div class="sec-lbl">// التوقعات</div><p class="sec-txt">'+fb.forecast+'</p></div>'
+            +'</div>';
+        st.innerText='LOCAL'; st.style.color='var(--orange)';
+        setTimeout(()=>{st.innerText='STANDBY';st.style.color='var(--muted)'},4000);
     }
+}
+
+// تحليل محلي فوري بدون backend
+function localFallback(text) {
+    const t = text.toLowerCase();
+    let threat='منخفض', score=30, loc='الشرق الأوسط', lat=33.3, lng=44.4;
+    const locs=[
+        [/لبنان|بيروت|الضاحية/,'لبنان',33.9,35.5],
+        [/إيران|طهران|أصفهان|مشهد/,'إيران',32.4,53.7],
+        [/غزة|حماس|رفح|خانيونس/,'غزة',31.3,34.3],
+        [/إسرائيل|تل أبيب|حيفا|القدس/,'إسرائيل',31.8,35.2],
+        [/العراق|بغداد|البصرة|الموصل/,'العراق',33.3,44.4],
+        [/سوريا|دمشق|حلب|حمص/,'سوريا',34.8,38.9],
+        [/اليمن|صنعاء|عدن|الحوثي/,'اليمن',15.5,47.5],
+        [/مصر|القاهرة|سيناء/,'مصر',26.8,30.8],
+        [/السعودية|الرياض|جدة/,'السعودية',24.7,46.7],
+        [/تركيا|أنقرة|اسطنبول/,'تركيا',39.0,35.0],
+        [/روسيا|موسكو/,'روسيا',55.7,37.6],
+        [/أمريكا|واشنطن|البنتاغون/,'الولايات المتحدة',38.9,-77.0],
+    ];
+    for(const [re,n,la,ln] of locs){if(re.test(t)){loc=n;lat=la;lng=ln;break;}}
+    if(/حرب|تصعيد|مواجهة|اشتباكات|معركة/.test(t)){threat='حرج';score=90;}
+    else if(/غارات|قصف|هجوم|ضربة|صاروخ|مسيّر/.test(t)){threat='مرتفع';score=78;}
+    else if(/توتر|تحذير|تهديد|إنذار|استنفار/.test(t)){threat='متوسط';score=55;}
+    const parties=[];
+    if(/إسرائيل/.test(t)) parties.push('إسرائيل');
+    if(/إيران|الحرس الثوري/.test(t)) parties.push('إيران');
+    if(/حزب الله/.test(t)) parties.push('حزب الله');
+    if(/حماس/.test(t)) parties.push('حماس');
+    if(/أمريكا|الولايات المتحدة/.test(t)) parties.push('الولايات المتحدة');
+    if(/روسيا/.test(t)) parties.push('روسيا');
+    if(/تركيا/.test(t)) parties.push('تركيا');
+    if(/الحوثي|أنصار الله/.test(t)) parties.push('الحوثيون');
+    if(!parties.length) parties.push('أطراف محلية');
+    return {
+        threat_level:threat, threat_score:score, location_name:loc, lat, lng,
+        summary:`تحليل سريع: ${text.substring(0,80)}... الأطراف: ${parties.join('، ')} في ${loc}.`,
+        parties,
+        interests:`صراع مصالح بين ${parties.join(' و ')} في ${loc}.`,
+        scenarios:{
+            current:`الوضع في ${loc}: ${threat==='حرج'?'تصعيد عسكري خطير':threat==='مرتفع'?'توتر متصاعد':threat==='متوسط'?'قلق وترقب':'هدوء نسبي'}.`,
+            best:'تدخل دبلوماسي وتهدئة فورية.',
+            worst:'تصعيد شامل وتدخل أطراف إقليمية.'
+        },
+        forecast:`خلال 30 يوماً: ${threat==='حرج'?'احتمال تصعيد 80%':threat==='مرتفع'?'احتمال استمرار التوتر 65%':'احتمال هدوء نسبي 55%'}.`,
+        _source:'local'
+    };
 }
 
 function color(l) {
