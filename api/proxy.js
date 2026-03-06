@@ -44,6 +44,11 @@ async function handleNews(req, res) {
     // وكالات دولية
     ['https://arabic.rt.com/rss/', 'RT عربي', '🇷🇺', 'ar'],
     ['https://feeds.reuters.com/reuters/worldNews', 'Reuters', '🌐', 'en'],
+    ['https://feeds.reuters.com/Reuters/worldNews', 'Reuters World', '🌐', 'en'],
+    // Associated Press
+    ['https://rsshub.app/apnews/topics/ap-top-news', 'AP News', '🇺🇸', 'en'],
+    ['https://feeds.apnews.com/rss/apf-topnews', 'AP Top News', '🇺🇸', 'en'],
+    ['https://feeds.apnews.com/rss/apf-middleeast', 'AP Middle East', '🇺🇸', 'en'],
     ['https://sputnikarabic.ae/rss', 'سبوتنيك', '🇷🇺', 'ar'],
     // رئيسية
     ['https://www.aljazeera.net/feed/topic-35', 'الجزيرة', '🇶🇦', 'ar'],
@@ -158,6 +163,45 @@ async function handleNews(req, res) {
       if (r.ok) { const d = await r.json(); d.response?.results?.forEach(a => a.webTitle && all.push({ title: a.webTitle, publishedAt: a.webPublicationDate, source: { name: 'Guardian', flag: '🇬🇧' }, url: a.webUrl, lang: 'en' })); }
     } catch(e) {}
   }
+
+  // GDELT Project - أكبر قاعدة بيانات أخبار في العالم
+  try {
+    const gdeltQueries = [
+      // عربي
+      'https://api.gdeltproject.org/api/v2/doc/doc?query=middle+east+sourcelang:arabic&mode=artlist&maxrecords=15&format=json&sort=DateDesc',
+      // إنجليزي
+      'https://api.gdeltproject.org/api/v2/doc/doc?query=iran+OR+israel+OR+iraq+OR+syria+OR+lebanon+OR+yemen+sourcelang:english&mode=artlist&maxrecords=15&format=json&sort=DateDesc',
+    ];
+    const gdeltResults = await Promise.allSettled(
+      gdeltQueries.map(url => fetch(url, { signal: AbortSignal.timeout(5000) }))
+    );
+    for (const result of gdeltResults) {
+      if (result.status === 'fulfilled' && result.value.ok) {
+        try {
+          const d = await result.value.json();
+          d.articles?.forEach(a => {
+            if (!a.title || a.title.length < 8) return;
+            // تحويل تاريخ GDELT من صيغة YYYYMMDDTHHMMSSz
+            let pubDate = new Date().toISOString();
+            if (a.seendate) {
+              try {
+                const sd = a.seendate.toString();
+                pubDate = new Date(`${sd.slice(0,4)}-${sd.slice(4,6)}-${sd.slice(6,8)}T${sd.slice(9,11)}:${sd.slice(11,13)}:00Z`).toISOString();
+              } catch(e) {}
+            }
+            const domain = a.domain || a.url?.match(/https?:\/\/([^/]+)/)?.[1] || 'GDELT';
+            all.push({
+              title: a.title,
+              publishedAt: pubDate,
+              source: { name: domain, flag: '🌍' },
+              url: a.url || '',
+              lang: a.language === 'Arabic' ? 'ar' : 'en'
+            });
+          });
+        } catch(e) {}
+      }
+    }
+  } catch(e) {}
 
   // ترجمة غير العربية
   const nonAr = all.filter(a => a.lang !== 'ar' || !(a.title.match(/[\u0600-\u06FF]/)||[]));
