@@ -289,72 +289,93 @@ async function handleAnalysis(req, res) {
 
 الخبر: "${txt}"`;
 
-  // Groq و Gemini بالتوازي - أيهما يرد أول يُستخدم
-  function makeGroqCall(model, tokens, timeoutMs) {
-    return fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ}` },
-      body: JSON.stringify({
-        model, temperature: 0.2, max_tokens: tokens,
-        messages: [
-          { role: 'system', content: 'محلل جيوسياسي خبير. JSON نقي فقط.' },
-          { role: 'user', content: prompt }
-        ],
-        response_format: { type: 'json_object' }
-      }), signal: AbortSignal.timeout(timeoutMs)
-    }).then(async r => {
-      if (!r.ok) throw new Error('groq-' + r.status);
-      const d = await r.json();
-      const p = JSON.parse(d.choices?.[0]?.message?.content || '{}');
-      if (!p.threat_level) throw new Error('empty');
-      p.lat = parseFloat(p.lat) || 33.3;
-      p.lng = parseFloat(p.lng) || 44.4;
-      p.threat_score = Math.min(100, Math.max(0, parseInt(p.threat_score)||50));
-      p._source = 'groq';
-      return p;
-    });
-  }
-
-  function makeGeminiCall(model, timeoutMs) {
-    return fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI}`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.2, maxOutputTokens: 1200 }
-        }), signal: AbortSignal.timeout(timeoutMs) }
-    ).then(async r => {
-      const d = await r.json();
-      if (!r.ok || !d.candidates?.length) throw new Error('gemini-fail');
-      let raw = d.candidates[0]?.content?.parts?.[0]?.text || '';
-      raw = raw.replace(/```json|```/g, '').trim();
-      const m = raw.match(/\{[\s\S]*\}/);
-      if (!m) throw new Error('no-json');
-      const p = JSON.parse(m[0]);
-      if (!p.threat_level) throw new Error('empty');
-      p.lat = parseFloat(p.lat) || 33.3;
-      p.lng = parseFloat(p.lng) || 44.4;
-      p.threat_score = Math.min(100, Math.max(0, parseInt(p.threat_score)||50));
-      p._source = 'gemini';
-      return p;
-    });
-  }
-
-  // قائمة كل المحاولات بالتوازي
-  const calls = [];
+  // محاولة Groq أولاً (نموذج سريع)
   if (GROQ) {
-    calls.push(makeGroqCall('llama-3.1-8b-instant', 900, 10000));
-    calls.push(makeGroqCall('llama-3.3-70b-versatile', 1400, 22000));
-  }
-  if (GEMINI) {
-    calls.push(makeGeminiCall('gemini-2.0-flash', 15000));
-    calls.push(makeGeminiCall('gemini-1.5-flash', 18000));
+    try {
+      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ}` },
+        body: JSON.stringify({
+          model: 'llama-3.1-8b-instant',
+          messages: [
+            { role: 'system', content: 'محلل جيوسياسي خبير. JSON نقي فقط.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.2, max_tokens: 900,
+          response_format: { type: 'json_object' }
+        }), signal: AbortSignal.timeout(9000)
+      });
+      if (r.ok) {
+        const d = await r.json();
+        const p = JSON.parse(d.choices?.[0]?.message?.content || '{}');
+        if (p.threat_level) {
+          p.lat = parseFloat(p.lat) || 33.3;
+          p.lng = parseFloat(p.lng) || 44.4;
+          p.threat_score = Math.min(100, Math.max(0, parseInt(p.threat_score)||50));
+          p._source = 'groq';
+          return res.status(200).json(p);
+        }
+      }
+    } catch(e) {}
   }
 
-  if (calls.length > 0) {
+  // محاولة Gemini (بديل سريع)
+  if (GEMINI) {
     try {
-      const result = await Promise.any(calls);
-      if (result) return res.status(200).json(result);
+      const r = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.2, maxOutputTokens: 900 }
+          }), signal: AbortSignal.timeout(12000) }
+      );
+      const d = await r.json();
+      if (r.ok && d.candidates?.length) {
+        let raw = d.candidates[0]?.content?.parts?.[0]?.text || '';
+        raw = raw.replace(/```json|```/g, '').trim();
+        const m = raw.match(/\{[\s\S]*\}/);
+        if (m) {
+          const p = JSON.parse(m[0]);
+          if (p.threat_level) {
+            p.lat = parseFloat(p.lat) || 33.3;
+            p.lng = parseFloat(p.lng) || 44.4;
+            p.threat_score = Math.min(100, Math.max(0, parseInt(p.threat_score)||50));
+            p._source = 'gemini';
+            return res.status(200).json(p);
+          }
+        }
+      }
+    } catch(e) {}
+  }
+
+  // محاولة Groq النموذج الكبير كآخر محاولة
+  if (GROQ) {
+    try {
+      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ}` },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [
+            { role: 'system', content: 'محلل جيوسياسي خبير. JSON نقي فقط.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.2, max_tokens: 1200,
+          response_format: { type: 'json_object' }
+        }), signal: AbortSignal.timeout(20000)
+      });
+      if (r.ok) {
+        const d = await r.json();
+        const p = JSON.parse(d.choices?.[0]?.message?.content || '{}');
+        if (p.threat_level) {
+          p.lat = parseFloat(p.lat) || 33.3;
+          p.lng = parseFloat(p.lng) || 44.4;
+          p.threat_score = Math.min(100, Math.max(0, parseInt(p.threat_score)||50));
+          p._source = 'groq';
+          return res.status(200).json(p);
+        }
+      }
     } catch(e) {}
   }
 
