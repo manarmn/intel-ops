@@ -206,34 +206,45 @@ async function handleNews(req, res) {
     }
   } catch(e) {}
 
-  // ترجمة غير العربية
-  // تحديد غير العربية + الفارسية (تشترك في نفس Unicode لكن تختلف)
-  const nonAr = all.filter(a => {
-    const arabicChars = (a.title.match(/[\u0600-\u06FF]/g)||[]).length;
-    const totalChars = a.title.replace(/\s/g,'').length;
-    // إذا كانت نسبة الأحرف العربية/الفارسية أقل من 40% = تحتاج ترجمة
-    // أو إذا كانت اللغة غير عربية صراحةً
-    const isPersian = /[\u067E\u0686\u06AF\u06CC\u0698]/.test(a.title); // أحرف فارسية خاصة
-    return a.lang !== 'ar' || arabicChars / totalChars < 0.4 || isPersian;
-  });
+  // ترجمة الأخبار غير العربية والفارسية
+  function needsTranslation(a) {
+    if (a.lang !== 'ar') return true; // إنجليزي أو غيره
+    // أحرف فارسية خاصة لا توجد في العربية
+    if (/[\u067E\u0686\u06AF\u06CC\u0698\u06A9\u06F0-\u06F9]/.test(a.title)) return true;
+    // كلمات فارسية شائعة
+    if (/\b(است|می|که|در|به|از|این|با|را|برای|های|شد|کرد|گفت|ایران|تهران)\b/.test(a.title)) return true;
+    return false;
+  }
+
+  const nonAr = all.filter(needsTranslation);
+
   if (nonAr.length && GROQ) {
-    try {
-      const batch = nonAr.slice(0, 30);
-      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ}` },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [{ role: 'user', content: `ترجم للعربية الفصحى. JSON فقط: {"t":["ترجمة1",...]}\n${batch.map((a,i)=>`${i+1}. ${a.title}`).join('\n')}` }],
-          temperature: 0.1, max_tokens: 2000, response_format: { type: 'json_object' }
-        }), signal: AbortSignal.timeout(10000)
-      });
-      if (r.ok) {
-        const d = await r.json();
-        const tr = JSON.parse(d.choices?.[0]?.message?.content||'{}').t || [];
-        batch.forEach((a,i) => { if(tr[i]) { a.title = tr[i]; a.lang = 'ar'; } });
-      }
-    } catch(e) {}
+    // ترجمة على دفعتين إذا كان العدد كبيراً
+    const batches = [];
+    for (let i = 0; i < Math.min(nonAr.length, 60); i += 25) {
+      batches.push(nonAr.slice(i, i + 25));
+    }
+    for (const batch of batches) {
+      try {
+        const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ}` },
+          body: JSON.stringify({
+            model: 'llama-3.1-8b-instant',
+            messages: [{ role: 'user', content: `ترجم كل العناوين التالية للعربية الفصحى بدقة. قواعد: لا تضف شرحاً، ترجم فقط، احفظ أسماء الأشخاص والأماكن. أجب بـ JSON فقط: {"t":["ترجمة1","ترجمة2",...]}
+${batch.map((a,i)=>`${i+1}. ${a.title}`).join('
+')}` }],
+            temperature: 0.1, max_tokens: 2500,
+            response_format: { type: 'json_object' }
+          }), signal: AbortSignal.timeout(12000)
+        });
+        if (r.ok) {
+          const d = await r.json();
+          const tr = JSON.parse(d.choices?.[0]?.message?.content||'{}').t || [];
+          batch.forEach((a,i) => { if (tr[i] && tr[i].length > 3) { a.title = tr[i]; a.lang = 'ar'; } });
+        }
+      } catch(e) {}
+    }
   }
 
   // إزالة تكرار وترتيب
@@ -384,92 +395,112 @@ async function handleAnalysis(req, res) {
 
 
 // ============================================================
-// TELEGRAM - قنوات عسكرية
+// TELEGRAM - قنوات عسكرية وإخبارية
 // ============================================================
 async function handleTelegram(req, res) {
   const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-  if (!TOKEN) return res.status(500).json({ error: 'TELEGRAM_BOT_TOKEN غير موجود' });
+  const GROQ = process.env.GROQ_API_KEY;
 
+  // قنوات Telegram العسكرية والإخبارية
   const channels = [
-    { id: '@intelslava', name: 'Intel Slava', flag: '🪖' },
-    { id: '@wargonzo', name: 'War Gonzo', flag: '⚔️' },
-    { id: '@rybar', name: 'Rybar', flag: '🎯' },
-    { id: '@MiddleEastSpectator', name: 'ME Spectator', flag: '🌍' },
-    { id: '@AlHadath', name: 'الحدث', flag: '📡' },
-    { id: '@AlArabiya_Ar', name: 'العربية', flag: '🇸🇦' },
-    { id: '@AlJazeeraAr', name: 'الجزيرة', flag: '🇶🇦' },
-    { id: '@ultrapalestine', name: 'أولترا فلسطين', flag: '🇵🇸' },
-    { id: '@qassam_arabic', name: 'كتائب القسام', flag: '🔴' },
-    { id: '@IRNAarabic', name: 'إيرنا عربي', flag: '🇮🇷' },
+    // عسكرية
+    { id: 'intelslava',          name: 'Intel Slava Z',      flag: '🪖', lang: 'en' },
+    { id: 'wargonzo',            name: 'War Gonzo',           flag: '⚔️', lang: 'en' },
+    { id: 'rybar',               name: 'Rybar',               flag: '🎯', lang: 'en' },
+    { id: 'MiddleEastSpectator', name: 'ME Spectator',        flag: '🌍', lang: 'en' },
+    { id: 'militarymaps',        name: 'Military Maps',       flag: '🗺️', lang: 'en' },
+    // عربية
+    { id: 'AlHadath',            name: 'الحدث',               flag: '📡', lang: 'ar' },
+    { id: 'ultrapalestine',      name: 'أولترا فلسطين',       flag: '🇵🇸', lang: 'ar' },
+    { id: 'qassam_arabic',       name: 'كتائب القسام',        flag: '🔴', lang: 'ar' },
+    { id: 'IRNAarabic',          name: 'إيرنا عربي',          flag: '🇮🇷', lang: 'ar' },
+    { id: 'AlMayadeenNews',      name: 'الميادين',            flag: '📺', lang: 'ar' },
+    { id: 'alarabiya_breaking',  name: 'العربية عاجل',        flag: '🇸🇦', lang: 'ar' },
+    { id: 'AJABreaking',         name: 'الجزيرة عاجل',       flag: '🇶🇦', lang: 'ar' },
   ];
 
-  const GROQ = process.env.GROQ_API_KEY;
   const allMessages = [];
 
+  // جلب RSS لكل قناة عبر RSSHub
   await Promise.allSettled(channels.map(async (ch) => {
-    try {
-      const r = await fetch(
-        `https://api.telegram.org/bot${TOKEN}/getUpdates?offset=-5&limit=5`,
-        { signal: AbortSignal.timeout(4000) }
-      );
-      // جلب آخر رسائل القناة عبر forwardFromChat
-      const r2 = await fetch(
-        `https://api.telegram.org/bot${TOKEN}/sendMessage?chat_id=${ch.id}&text=.`,
-        { signal: AbortSignal.timeout(3000) }
-      );
-      // استخدام RSS بديل للقنوات العامة
-      const rss = await fetch(
-        `https://rsshub.app/telegram/channel/${ch.id.replace('@','')}`,
-        { signal: AbortSignal.timeout(5000) }
-      );
-      if (rss.ok) {
+    // محاولة مصادر RSS متعددة
+    const rssUrls = [
+      `https://rsshub.app/telegram/channel/${ch.id}`,
+      `https://rss.app/feeds/telegram/${ch.id}.xml`,
+    ];
+    for (const url of rssUrls) {
+      try {
+        const rss = await fetch(url, {
+          signal: AbortSignal.timeout(6000),
+          headers: { 'User-Agent': 'Mozilla/5.0' }
+        });
+        if (!rss.ok) continue;
         const xml = await rss.text();
         const re = /<item>([\s\S]*?)<\/item>/gi;
-        let m;
-        while ((m = re.exec(xml)) && allMessages.length < 50) {
+        let m; let count = 0;
+        while ((m = re.exec(xml)) && count < 8) {
           const b = m[1];
-          const tm = b.match(/<title[^>]*>([\s\S]*?)<\/title>/);
+          const tm = b.match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/);
           const dm = b.match(/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/);
           const lm = b.match(/<link[^>]*>([\s\S]*?)<\/link>/);
-          let title = tm ? tm[1].replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim() : '';
-          if (!title || title.length < 8) return;
+          let title = tm ? tm[1].replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').trim() : '';
+          if (!title || title.length < 8) continue;
           let date = new Date().toISOString();
           if (dm) try { date = new Date(dm[1]).toISOString(); } catch(e) {}
           allMessages.push({
             title, publishedAt: date,
             source: { name: ch.name, flag: ch.flag },
-            url: lm ? lm[1].trim() : '',
-            lang: 'ar', _from: 'telegram'
+            url: lm ? lm[1].trim() : `https://t.me/${ch.id}`,
+            lang: ch.lang, _from: 'telegram'
           });
+          count++;
         }
-      }
-    } catch(e) {}
+        if (count > 0) break; // نجح هذا المصدر
+      } catch(e) {}
+    }
   }));
 
-  // ترجمة غير العربية
-  const nonAr = allMessages.filter(a => !(a.title.match(/[\u0600-\u06FF]/)||[]));
-  if (nonAr.length && GROQ) {
-    try {
-      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ}` },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [{ role: 'user', content: `ترجم للعربية. JSON فقط: {"t":["ترجمة1",...]}
-${nonAr.slice(0,10).map((a,i)=>`${i+1}. ${a.title}`).join('\n')}` }],
-          temperature: 0.1, max_tokens: 1000, response_format: { type: 'json_object' }
-        }), signal: AbortSignal.timeout(8000)
-      });
-      if (r.ok) {
-        const d = await r.json();
-        const tr = JSON.parse(d.choices?.[0]?.message?.content||'{}').t||[];
-        nonAr.slice(0,10).forEach((a,i) => { if(tr[i]) a.title = tr[i]; });
-      }
-    } catch(e) {}
+  // ترجمة الإنجليزية للعربية
+  const toTranslate = allMessages.filter(a => a.lang !== 'ar');
+  if (toTranslate.length && GROQ) {
+    const batches = [];
+    for (let i = 0; i < Math.min(toTranslate.length, 40); i += 20) {
+      batches.push(toTranslate.slice(i, i + 20));
+    }
+    for (const batch of batches) {
+      try {
+        const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ}` },
+          body: JSON.stringify({
+            model: 'llama-3.1-8b-instant',
+            messages: [{ role: 'user', content: `ترجم للعربية الفصحى. JSON فقط: {"t":["ترجمة1",...]}
+${batch.map((a,i)=>`${i+1}. ${a.title}`).join('
+')}` }],
+            temperature: 0.1, max_tokens: 2000,
+            response_format: { type: 'json_object' }
+          }), signal: AbortSignal.timeout(10000)
+        });
+        if (r.ok) {
+          const d = await r.json();
+          const tr = JSON.parse(d.choices?.[0]?.message?.content||'{}').t||[];
+          batch.forEach((a,i) => { if(tr[i] && tr[i].length > 3) { a.title = tr[i]; a.lang = 'ar'; } });
+        }
+      } catch(e) {}
+    }
   }
 
   allMessages.sort((a,b) => new Date(b.publishedAt) - new Date(a.publishedAt));
-  return res.status(200).json({ messages: allMessages, count: allMessages.length });
+
+  // إزالة التكرار
+  const seen = new Set();
+  const unique = allMessages.filter(a => {
+    const key = a.title.slice(0,30).toLowerCase().replace(/\s/g,'');
+    if (seen.has(key)) return false;
+    seen.add(key); return true;
+  });
+
+  return res.status(200).json({ messages: unique, count: unique.length });
 }
 
 // ============================================================
