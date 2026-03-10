@@ -583,6 +583,15 @@ function tclass(l) {
     // بدء التطبيق
     window.loadNews();
 
+    // تحديث تلقائي كل 5 دقائق
+    setInterval(() => {
+        if (window._activeTab === 'telegram') {
+            loadTelegram();
+        } else {
+            loadNews();
+        }
+    }, 5 * 60 * 1000);
+
 // ===== TAB SWITCH =====
 window._activeTab = 'osint';
 window.switchTab = function(tab) {
