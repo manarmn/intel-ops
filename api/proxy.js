@@ -23,6 +23,12 @@ async function handleNews(req, res) {
   const GUARDIAN = process.env.GUARDIAN_API_KEY;
   const NEWSAPI = process.env.NEWS_API_KEY;
 
+  // كشف الفارسية
+  function isFarsi(text) {
+    return /[\u067E\u0686\u06AF\u06CC\u0698\u06A9\u06F0-\u06F9]/.test(text) ||
+      /\b(است|می\s|که\s|\sدر\s|\sبه\s|\sاز\s|این\s|\sبا\s|\sرا\s|برای|شد\s|کرد|گفت)/.test(text);
+  }
+
   function parseRSS(xml, name, flag, lang) {
     const out = [];
     try {
@@ -94,10 +100,18 @@ async function handleNews(req, res) {
     ['https://www.wafa.ps/rss', 'وفا', '🇵🇸', 'ar'],
     ['https://www.maannews.net/rss', 'معاً', '🇵🇸', 'ar'],
     ['https://www.alquds.co.uk/rss', 'القدس العربي', '🇵🇸', 'ar'],
-    // إيرانية
-    ['https://www.irna.ir/rss.xml', 'IRNA', '🇮🇷', 'ar'],
-    ['https://www.tasnimnews.com/ar/rss', 'تسنيم', '🇮🇷', 'ar'],
-    ['https://www.mehrnews.com/rss', 'مهر نيوز', '🇮🇷', 'ar'],
+    // إيران - النسخ العربية فقط
+    ['https://www.irna.ir/ar/rss.xml', 'إيرنا عربي', '🇮🇷', 'ar'],
+    ['https://arabic.tasnimnews.com/rss', 'تسنيم عربي', '🇮🇷', 'ar'],
+    // VK - مصادر روسية عسكرية
+    ['https://rsshub.app/vk/wall/-76229642', 'Voennaya Khronika', '🇷🇺', 'en'],
+    ['https://rsshub.app/vk/wall/-132104579', 'Operatsiya Z', '🇷🇺', 'en'],
+    // تحليلات استراتيجية
+    ['https://carnegieendowment.org/rss/solr/articles', 'Carnegie ME', '🔬', 'en'],
+    ['https://www.crisisgroup.org/rss.xml', 'Crisis Group', '🌐', 'en'],
+    ['https://warontherocks.com/feed/', 'War on the Rocks', '⚔️', 'en'],
+    ['https://www.defensenews.com/arc/outboundfeeds/rss/', 'Defense News', '🛡️', 'en'],
+    ['https://breakingdefense.com/feed/', 'Breaking Defense', '💥', 'en'],
     // تركية
     ['https://www.aa.com.tr/ar/rss', 'الأناضول', '🇹🇷', 'ar'],
     ['https://www.trtarabi.com/rss', 'TRT عربي', '🇹🇷', 'ar'],
@@ -208,11 +222,8 @@ async function handleNews(req, res) {
 
   // ترجمة الأخبار غير العربية والفارسية
   function needsTranslation(a) {
-    if (a.lang !== 'ar') return true; // إنجليزي أو غيره
-    // أحرف فارسية خاصة لا توجد في العربية
-    if (/[\u067E\u0686\u06AF\u06CC\u0698\u06A9\u06F0-\u06F9]/.test(a.title)) return true;
-    // كلمات فارسية شائعة
-    if (/\b(است|می|که|در|به|از|این|با|را|برای|های|شد|کرد|گفت|ایران|تهران)\b/.test(a.title)) return true;
+    if (a.lang !== 'ar') return true;
+    if (isFarsi(a.title)) return true;
     return false;
   }
 
@@ -401,22 +412,26 @@ async function handleTelegram(req, res) {
   const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
   const GROQ = process.env.GROQ_API_KEY;
 
-  // قنوات Telegram العسكرية والإخبارية
+  // مصادر Telegram + VK + مدونات
   const channels = [
-    // عسكرية
-    { id: 'intelslava',          name: 'Intel Slava Z',      flag: '🪖', lang: 'en' },
-    { id: 'wargonzo',            name: 'War Gonzo',           flag: '⚔️', lang: 'en' },
-    { id: 'rybar',               name: 'Rybar',               flag: '🎯', lang: 'en' },
-    { id: 'MiddleEastSpectator', name: 'ME Spectator',        flag: '🌍', lang: 'en' },
-    { id: 'militarymaps',        name: 'Military Maps',       flag: '🗺️', lang: 'en' },
-    // عربية
-    { id: 'AlHadath',            name: 'الحدث',               flag: '📡', lang: 'ar' },
-    { id: 'ultrapalestine',      name: 'أولترا فلسطين',       flag: '🇵🇸', lang: 'ar' },
-    { id: 'qassam_arabic',       name: 'كتائب القسام',        flag: '🔴', lang: 'ar' },
-    { id: 'IRNAarabic',          name: 'إيرنا عربي',          flag: '🇮🇷', lang: 'ar' },
-    { id: 'AlMayadeenNews',      name: 'الميادين',            flag: '📺', lang: 'ar' },
-    { id: 'alarabiya_breaking',  name: 'العربية عاجل',        flag: '🇸🇦', lang: 'ar' },
-    { id: 'AJABreaking',         name: 'الجزيرة عاجل',       flag: '🇶🇦', lang: 'ar' },
+    // Telegram عسكرية
+    { id: 'intelslava',          name: 'Intel Slava Z',      flag: '🪖', lang: 'en', type: 'tg' },
+    { id: 'wargonzo',            name: 'War Gonzo',           flag: '⚔️', lang: 'en', type: 'tg' },
+    { id: 'rybar',               name: 'Rybar',               flag: '🎯', lang: 'en', type: 'tg' },
+    { id: 'MiddleEastSpectator', name: 'ME Spectator',        flag: '🌍', lang: 'en', type: 'tg' },
+    { id: 'militarymaps',        name: 'Military Maps',       flag: '🗺️', lang: 'en', type: 'tg' },
+    { id: 'conflictnewsua',      name: 'Conflict News',       flag: '⚡', lang: 'en', type: 'tg' },
+    // Telegram عربية
+    { id: 'AlHadath',            name: 'الحدث',               flag: '📡', lang: 'ar', type: 'tg' },
+    { id: 'ultrapalestine',      name: 'أولترا فلسطين',       flag: '🇵🇸', lang: 'ar', type: 'tg' },
+    { id: 'IRNAarabic',          name: 'إيرنا عربي',          flag: '🇮🇷', lang: 'ar', type: 'tg' },
+    { id: 'AlMayadeenNews',      name: 'الميادين',            flag: '📺', lang: 'ar', type: 'tg' },
+    { id: 'alarabiya_breaking',  name: 'العربية عاجل',        flag: '🇸🇦', lang: 'ar', type: 'tg' },
+    { id: 'AJABreaking',         name: 'الجزيرة عاجل',        flag: '🇶🇦', lang: 'ar', type: 'tg' },
+    // VK روسي
+    { id: '-76229642',           name: 'Voennaya Khronika',   flag: '🇷🇺', lang: 'en', type: 'vk' },
+    { id: '-132104579',          name: 'Operatsiya Z',         flag: '🇷🇺', lang: 'en', type: 'vk' },
+    { id: '-57424472',           name: 'Военный обозреватель', flag: '🇷🇺', lang: 'en', type: 'vk' },
   ];
 
   const allMessages = [];
@@ -424,10 +439,9 @@ async function handleTelegram(req, res) {
   // جلب RSS لكل قناة عبر RSSHub
   await Promise.allSettled(channels.map(async (ch) => {
     // محاولة مصادر RSS متعددة
-    const rssUrls = [
-      `https://rsshub.app/telegram/channel/${ch.id}`,
-      `https://rss.app/feeds/telegram/${ch.id}.xml`,
-    ];
+    const rssUrls = ch.type === 'vk'
+      ? [`https://rsshub.app/vk/wall/${ch.id}`, `https://vk.com/rss/wall${ch.id}.xml`]
+      : [`https://rsshub.app/telegram/channel/${ch.id}`, `https://rss.app/feeds/telegram/${ch.id}.xml`];
     for (const url of rssUrls) {
       try {
         const rss = await fetch(url, {
